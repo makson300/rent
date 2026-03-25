@@ -57,6 +57,9 @@ async def main():
     dp.include_router(operators_router)
     dp.include_router(search_router)
 
+    # Установка команд меню
+    from bot.commands import set_commands
+    await set_commands(bot)
 
     logger.info("Bot starting polling...")
     try:
