@@ -6,16 +6,24 @@ from aiogram.types import (
 
 
 def get_main_menu() -> ReplyKeyboardMarkup:
-    """Главное меню бота — 4 раздела"""
+    """Главное меню бота — 8 разделов"""
     return ReplyKeyboardMarkup(
         keyboard=[
             [
-                KeyboardButton(text="🏠 Аренда"),
-                KeyboardButton(text="🎓 Обучение"),
+                KeyboardButton(text="🔍 Арендовать"),
+                KeyboardButton(text="🏷 Сдать оборудование"),
             ],
             [
-                KeyboardButton(text="🆘 ЧП / События"),
+                KeyboardButton(text="🎓 Обучение"),
+                KeyboardButton(text="🆘 ЧП"),
+            ],
+            [
+                KeyboardButton(text="📋 Мои объявления"),
                 KeyboardButton(text="👤 Профиль"),
+            ],
+            [
+                KeyboardButton(text="📜 Правила и условия"),
+                KeyboardButton(text="🎧 Поддержка"),
             ],
         ],
         resize_keyboard=True,

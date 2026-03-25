@@ -10,5 +10,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./rentbot.db")
 _admin_ids_raw = os.getenv("ADMIN_IDS", "")
 ADMIN_IDS: list[int] = [int(x.strip()) for x in _admin_ids_raw.split(",") if x.strip()]
 
+PROXY_URL = os.getenv("PROXY_URL")  # e.g., socks5://user:pass@127.0.0.1:1080 or http://127.0.0.1:8080
+
 if not BOT_TOKEN:
     raise ValueError("BOT_TOKEN не установлен в .env")

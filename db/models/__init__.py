@@ -2,5 +2,6 @@
 from db.models.user import User
 from db.models.category import Category
 from db.models.tariff import Tariff
+from db.models.listing import Listing, ListingPhoto
 
-__all__ = ["User", "Category", "Tariff"]
+__all__ = ["User", "Category", "Tariff", "Listing", "ListingPhoto"]
