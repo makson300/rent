@@ -69,7 +69,11 @@ async def process_category(message: types.Message, state: FSMContext):
 @router.message(ListingCreateStates.waiting_for_title, F.text)
 async def process_title(message: types.Message, state: FSMContext):
     await state.update_data(title=message.text)
-    await message.answer("📝 <b>Шаг 4/9</b>\nВведите подробное описание:")
+    await message.answer(
+        "📝 <b>Шаг 4/9</b>\nВведите подробное описание оборудования:\n\n"
+        "<i>Совет: Укажите комплектацию и особенности, чтобы привлечь больше клиентов.</i>",
+        parse_mode="HTML"
+    )
     await state.set_state(ListingCreateStates.waiting_for_description)
 
 
@@ -100,7 +104,25 @@ async def process_delivery(message: types.Message, state: FSMContext):
 @router.message(ListingCreateStates.waiting_for_price, F.text)
 async def process_price(message: types.Message, state: FSMContext):
     await state.update_data(price_list=message.text)
-    await message.answer("📝 <b>Шаг 8/9</b>\nУкажите контактные данные (номер телефона, ссылки):")
+
+    from db.base import async_session
+    from db.crud.user import get_user
+    async with async_session() as session:
+        user = await get_user(session, message.from_user.id)
+
+    contact_text = user.phone if user and user.phone else ""
+    kb = ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text=contact_text)]] if contact_text else [],
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )
+
+    await message.answer(
+        "📝 <b>Шаг 8/9</b>\nУкажите контактные данные для связи.\n\n"
+        "<i>Вы можете использовать номер телефона из вашего профиля (кнопка ниже) или ввести другой контакт (например, ссылку на Telegram).</i>",
+        reply_markup=kb,
+        parse_mode="HTML"
+    )
     await state.set_state(ListingCreateStates.waiting_for_contacts)
 
 
@@ -147,6 +169,37 @@ async def finish_photos(callback: types.CallbackQuery, state: FSMContext):
         await callback.answer("Нужно отправить хотя бы одно фото!", show_alert=True)
         return
         
+    # Показываем предпросмотр
+    preview_text = (
+        "👀 <b>Предпросмотр вашего объявления:</b>\n\n"
+        f"🏙 <b>Город:</b> {data['city']}\n"
+        f"🏷 <b>Категория:</b> {data['category']}\n"
+        f"📦 <b>Название:</b> {data['title']}\n"
+        f"📝 <b>Описание:</b> {data['description']}\n"
+        f"💰 <b>Цены:</b> {data['price_list']}\n"
+        f"🛡 <b>Залог:</b> {data.get('deposit_terms', 'Не требуется')}\n"
+        f"🚚 <b>Доставка:</b> {data['delivery_terms']}\n"
+        f"📞 <b>Контакты:</b> {data['contacts']}\n\n"
+        "<i>Проверьте данные. Если всё верно, нажмите «Опубликовать».</i>"
+    )
+
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ Опубликовать", callback_data="confirm_listing_publish")],
+        [InlineKeyboardButton(text="❌ Начать заново", callback_data="start_listing_create")]
+    ])
+
+    if photos:
+        await callback.message.answer_photo(photos[0], caption=preview_text[:1024], reply_markup=kb, parse_mode="HTML")
+    else:
+        await callback.message.answer(preview_text, reply_markup=kb, parse_mode="HTML")
+
+    await callback.answer()
+
+@router.callback_query(F.data == "confirm_listing_publish")
+async def confirm_listing_publish(callback: types.CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    photos = data.get("photos", [])
+
     # Сохраняем в БД
     from db.base import async_session
     from db.crud.listing import create_listing
