@@ -77,31 +77,46 @@ async def start_sale_listing(callback: types.CallbackQuery, state: FSMContext):
 
 @router.message(F.forward_from_chat & (F.forward_from_chat.username == "drone_IT_Shop"))
 @router.channel_post(F.chat.username == "drone_IT_Shop")
+def parse_partner_post(text: str) -> dict:
+    """Парсинг текста поста для извлечения цены и заголовка"""
+    import re
+    lines = [line.strip() for line in text.split("\n") if line.strip()]
+    if not lines:
+        return {"title": "Товар от партнера", "price": "По запросу", "desc": text}
+        
+    title = lines[0][:100]
+    price = "По запросу"
+    
+    # Регулярка для поиска цены (числа с валютой)
+    price_pattern = r'(\d[\d\s.,]*)\s*(?:руб|р|₽|\$|€|usd|eur)'
+    match = re.search(price_pattern, text.lower())
+    if match:
+        price = match.group(0).strip()
+    else:
+        # Поиск по ключевым словам
+        for line in lines:
+            if any(kw in line.lower() for kw in ["цена:", "стоимость:", "прайс:"]):
+                price = line.split(":")[-1].strip()
+                break
+                
+    return {"title": title, "price": price, "desc": text}
+
+
+@router.message(F.forward_from_chat & (F.forward_from_chat.username == "drone_IT_Shop"))
+@router.channel_post(F.chat.username == "drone_IT_Shop")
 async def import_partner_post(message: types.Message):
     """Автоматический импорт постов от партнера (@drone_IT_Shop) без модерации"""
     from bot.handlers.admin import is_admin
     
-    # Если это сообщение (не пост в канале), проверяем на админа
     is_from_channel = message.chat.type == "channel"
-    if not is_from_channel and not is_admin(message):
+    if not is_from_channel and not is_admin(message.from_user.id):
         return
 
-    # Извлекаем текст и фото
     text = message.text or message.caption or ""
     if not text:
         return
 
-    # Базовый парсинг
-    lines = text.split("\n")
-    title = lines[0][:100] if lines else "Товар от партнера"
-    description = text
-    price = "По запросу"
-    
-    # Ищем цену
-    for line in lines:
-        if any(c in line.lower() for c in ["руб", "₽", "$", "€", "цена"]):
-            price = line.strip()
-            break
+    parsed = parse_partner_post(text)
 
     # Сохраняем в БД
     from db.base import async_session
@@ -109,20 +124,19 @@ async def import_partner_post(message: types.Message):
     from db.crud.user import get_user
     
     async with async_session() as session:
-        # Пытаемся найти системного юзера или создать
-        db_user = await get_user(session, 1) # Ищем системного юзера
+        db_user = await get_user(session, 0) # Используем системного юзера (telegram_id=0)
         user_db_id = db_user.id if db_user else 1
 
         new_listing = Listing(
             user_id=user_db_id,
             category_id=2, # Продажа
             city="Москва",
-            title=title,
-            description=description,
-            price_list=price,
+            title=parsed["title"],
+            description=parsed["desc"],
+            price_list=parsed["price"],
             listing_type="sale",
             partner_id="drone_IT_Shop",
-            status="active", # СРАЗУ АКТИВНО для партнера
+            status="active",
             deposit_terms="Не требуется",
             delivery_terms="Уточняйте у продавца",
             contacts="@drone_IT_Shop"
@@ -130,6 +144,8 @@ async def import_partner_post(message: types.Message):
         session.add(new_listing)
         await session.flush()
         
+        # Обработка фото (если это медиагруппа, aiogram пришлет несколько сообщений, 
+        # но мы пока обрабатываем текущее)
         if message.photo:
             photo = ListingPhoto(
                 listing_id=new_listing.id,
@@ -142,8 +158,8 @@ async def import_partner_post(message: types.Message):
     if not is_from_channel:
         await message.answer(
             f"✅ <b>Пост распознан как «Продажа»!</b>\n"
-            f"Товар: {title}\n"
-            f"Цена: {price}\n\n"
-            f"Статус: Опубликовано автоматически (как партнер)." if is_from_channel else f"Статус: Отправлено на модерацию (как админ).",
+            f"Товар: {parsed['title']}\n"
+            f"Цена: {parsed['price']}\n\n"
+            f"Статус: Опубликовано в Магазине.",
             parse_mode="HTML"
         )

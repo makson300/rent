@@ -206,15 +206,48 @@ async def admin_cancel(callback: types.CallbackQuery):
     await callback.message.delete()
     await callback.answer("Действие отменено")
 
-@router.callback_query(F.data == "add_partner_sale")
-async def add_partner_sale(callback: types.CallbackQuery):
-    """Добавление партнерского поста как объявления о продаже"""
-    # Будем использовать текст из оригинального сообщения (оно выше в истории или мы его сохранили бы)
-    # Для простоты сейчас просто создадим запись. В реальности лучше использовать FSM.
+    listing_text = callback.message.reply_to_message.text or callback.message.reply_to_message.caption or ""
+    if not listing_text:
+        await callback.answer("Ошибка: текст не найден.", show_alert=True)
+        return
+
+    from bot.handlers.sales import parse_partner_post
+    parsed = parse_partner_post(listing_text)
     
-    await callback.message.answer("⚙️ Начинаю импорт... Пожалуйста, подождите.")
-    
-    # TODO: Реализовать парсинг текста поста для автоматического заполнения полей
-    # Сейчас просто создадим черновик
-    await callback.answer("Функционал автоматического парсинга в разработке. Используйте ручное добавление.")
+    async with async_session() as session:
+        # Получаем системного юзера
+        db_user = await session.execute(select(User).where(User.telegram_id == 0))
+        user_db_id = db_user.scalar().id if db_user.scalar() else 1
+        
+        new_listing = Listing(
+            user_id=user_db_id,
+            category_id=2,
+            city="Москва",
+            title=parsed["title"],
+            description=parsed["desc"],
+            price_list=parsed["price"],
+            listing_type="sale",
+            partner_id="drone_IT_Shop",
+            status="active",
+            deposit_terms="Не требуется",
+            delivery_terms="Уточняйте у продавца",
+            contacts="@drone_IT_Shop"
+        )
+        session.add(new_listing)
+        await session.flush()
+        
+        orig_msg = callback.message.reply_to_message
+        if orig_msg.photo:
+            from db.models.listing import ListingPhoto
+            session.add(ListingPhoto(listing_id=new_listing.id, photo_id=orig_msg.photo[-1].file_id))
+            
+        await session.commit()
+        
+    await callback.message.edit_text(
+        f"✅ <b>Импортировано в Магазин!</b>\n\n"
+        f"Товар: {parsed['title']}\n"
+        f"Цена: {parsed['price']}",
+        parse_mode="HTML"
+    )
+    await callback.answer("Импорт завершен")
 
