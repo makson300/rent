@@ -169,6 +169,10 @@ async def process_delivery(message: types.Message, state: FSMContext):
 
 @router.message(ListingCreateStates.waiting_for_price, F.text)
 async def process_price(message: types.Message, state: FSMContext):
+    # Basic numeric/length check for security/UX
+    if len(message.text) > 500:
+        await message.answer("⚠️ Текст слишком длинный. Пожалуйста, сократите описание цен.")
+        return
     await state.update_data(price_list=message.text)
     await message.answer("📝 <b>Шаг 8/9</b>\nУкажите контактные данные (номер телефона, ссылки):")
     await state.set_state(ListingCreateStates.waiting_for_contacts)

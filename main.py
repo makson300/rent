@@ -12,6 +12,7 @@ from bot.handlers import (
 )
 from bot.commands import set_bot_commands
 from bot.middlewares.throttling import ThrottlingMiddleware
+from bot.middlewares.error_handler import ErrorHandlingMiddleware
 from db.base import init_db
 
 logging.basicConfig(
@@ -46,6 +47,7 @@ async def main():
     dp = Dispatcher(storage=MemoryStorage())
 
     # Регистрация мидлварей
+    dp.update.outer_middleware(ErrorHandlingMiddleware())
     dp.message.middleware(ThrottlingMiddleware())
 
     # Установка команд бота
