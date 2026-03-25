@@ -68,7 +68,7 @@ async def show_category_listings(callback: types.CallbackQuery):
             [types.InlineKeyboardButton(text="🔙 Назад к категориям", callback_data=f"view_city_{city_id}")]
         ])
         await callback.message.edit_text(
-            f"😔 В городе <b>{city}</b> в категории <b>{category}</b> пока нет объявлений.",
+            f"😔 В городе <b>{city_name}</b> в категории <b>{cat_name}</b> пока нет объявлений.",
             parse_mode="HTML",
             reply_markup=kb
         )
