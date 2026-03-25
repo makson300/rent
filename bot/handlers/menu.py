@@ -140,11 +140,12 @@ async def cancel_feedback(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.edit_text("❌ Отправка обратной связи отменена.")
     await callback.answer()
 
-@router.message(F.text.in_({"🆘 ЧП", "🎧 Поддержка"}))
-async def stub_menu(message: types.Message):
-    """Заглушки для старых или тестовых кнопок"""
+@router.message(F.text == "🆘 ЧП")
+async def emergency_menu(message: types.Message):
+    """Заглушка для раздела ЧП"""
     await message.answer(
-        f"🚧 Раздел <b>«{message.text.strip('🎓🆘📜🎧 ')}»</b> находится в разработке.",
+        "🚧 Раздел <b>«ЧП»</b> находится в разработке.\n\n"
+        "Здесь вы сможете оперативно сообщить об утере или краже оборудования.",
         parse_mode="HTML",
         reply_markup=get_main_menu(),
     )

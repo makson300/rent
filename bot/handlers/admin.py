@@ -206,6 +206,13 @@ async def admin_cancel(callback: types.CallbackQuery):
     await callback.message.delete()
     await callback.answer("Действие отменено")
 
+
+@router.callback_query(F.data == "add_partner_sale")
+async def add_partner_sale(callback: types.CallbackQuery):
+    if not callback.message.reply_to_message:
+        await callback.answer("Ошибка: исходное сообщение не найдено (reply).", show_alert=True)
+        return
+
     listing_text = callback.message.reply_to_message.text or callback.message.reply_to_message.caption or ""
     if not listing_text:
         await callback.answer("Ошибка: текст не найден.", show_alert=True)
