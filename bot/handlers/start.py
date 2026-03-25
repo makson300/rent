@@ -81,12 +81,40 @@ async def process_contact(message: types.Message, state: FSMContext):
     async with async_session() as session:
         await update_user_phone(session, message.from_user.id, phone)
 
-    await state.clear()
+    from bot.keyboards.main_menu import get_user_type_keyboard
     await message.answer(
-        "✅ Регистрация завершена!\n\n"
-        "Выберите раздел:",
-        reply_markup=get_main_menu(),
+        "📝 <b>Последний шаг:</b>\n"
+        "Укажите, пожалуйста, ваш статус:",
+        parse_mode="HTML",
+        reply_markup=get_user_type_keyboard(),
     )
+    await state.set_state(RegistrationStates.waiting_for_user_type)
+
+
+@router.callback_query(RegistrationStates.waiting_for_user_type, F.data.startswith("user_type_"))
+async def process_user_type(callback: types.CallbackQuery, state: FSMContext):
+    """Сохранение типа пользователя и завершение регистрации"""
+    user_type = callback.data.split("_")[2]
+    
+    async with async_session() as session:
+        from db.crud.user import update_user_type
+        await update_user_type(session, callback.from_user.id, user_type)
+
+    await state.clear()
+    
+    type_name = "Частное лицо" if user_type == "private" else "Компания / Прокат"
+    
+    await callback.message.edit_text(
+        f"✅ Регистрация завершена!\n\n"
+        f"Ваш статус: <b>{type_name}</b>\n\n"
+        "Выберите раздел в меню ниже:",
+        parse_mode="HTML"
+    )
+    await callback.message.answer(
+        "🔝 Главное меню доски объявлений:",
+        reply_markup=get_main_menu()
+    )
+    await callback.answer()
 
 
 @router.message(RegistrationStates.waiting_for_contact)

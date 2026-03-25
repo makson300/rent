@@ -45,5 +45,18 @@ def get_contact_keyboard() -> ReplyKeyboardMarkup:
     )
 
 
+def get_user_type_keyboard() -> InlineKeyboardMarkup:
+    """Выбор типа пользователя"""
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="👤 Частное лицо", callback_data="user_type_private"),
+                InlineKeyboardButton(text="🏢 Компания / Прокат", callback_data="user_type_company")
+            ]
+        ]
+    )
+
+
 def remove_keyboard() -> ReplyKeyboardRemove:
     return ReplyKeyboardRemove()

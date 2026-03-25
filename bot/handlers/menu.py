@@ -25,24 +25,42 @@ async def rental_menu(message: types.Message):
 
 @router.message(F.text == "🏷 Сдать оборудование")
 async def rent_out_menu(message: types.Message):
-    """Вывод правил и пакетов размещения для ЮKassa"""
+    """Вывод правил и пакетов размещения на основе типа пользователя"""
     from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    from db.base import async_session
+    from db.crud.user import get_user
     
-    text = (
-        "🏷 <b>Размещение оборудования</b>\n\n"
-        "Перед размещением ознакомьтесь с нашими тарифами на услуги публикации объявлений.\n\n"
-        "<b>Пакеты (1 объявление):</b>\n"
-        "🔹 1 месяц — 700 ₽\n"
-        "🔹 6 месяцев — 2 500 ₽\n"
-        "🔹 12 месяцев — 3 500 ₽\n\n"
-        "<b>Пакеты (5 объявлений):</b>\n"
-        "🔹 1 месяц суммарно — 2 500 ₽\n"
-        "🔹 6 месяцев суммарно — 7 000 ₽\n"
-        "🔹 12 месяцев суммарно — 9 000 ₽\n\n"
-        "<i>Для продолжения публикации необходимо выбрать пакет и оплатить размещение.</i>"
-    )
+    async with async_session() as session:
+        user = await get_user(session, message.from_user.id)
+    
+    user_type = user.user_type if user else "private"
+    
+    if user_type == "company":
+        text = (
+            "🏢 <b>Размещение для компаний и прокатов</b>\n\n"
+            "Для компаний доступно размещение только <b>пакетами от 5 объявлений</b>.\n\n"
+            "<b>Тарифы на пакеты (5 объявлений):</b>\n"
+            "🔹 1 месяц суммарно — 2 500 ₽\n"
+            "🔹 6 месяцев суммарно — 7 000 ₽\n"
+            "🔹 12 месяцев суммарно — 9 000 ₽\n\n"
+            "<i>Выберите пакет для продолжения публикации.</i>"
+        )
+    else:
+        text = (
+            "👤 <b>Размещение для частных лиц</b>\n\n"
+            "<b>Тарифы (1 объявление):</b>\n"
+            "🔹 1 месяц — 700 ₽\n"
+            "🔹 6 месяцев — 2 500 ₽\n"
+            "🔹 12 месяцев — 3 500 ₽\n\n"
+            "<b>Пакеты (5 объявлений):</b>\n"
+            "🔹 1 месяц суммарно — 2 500 ₽\n"
+            "🔹 6 месяцев суммарно — 7 000 ₽\n"
+            "🔹 12 месяцев суммарно — 9 000 ₽\n\n"
+            "<i>Вы можете выбрать разовое размещение или выгодный пакет.</i>"
+        )
+        
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="💳 Оплатить (Тест) и продолжить", callback_data="start_listing_create")]
+        [InlineKeyboardButton(text="💳 Выбрать тариф и оплатить", callback_data="start_listing_create")]
     ])
     await message.answer(text, parse_mode="HTML", reply_markup=kb)
 

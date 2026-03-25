@@ -18,7 +18,7 @@ class User(Base):
     first_name: Mapped[str] = mapped_column(String(150), default="")
     last_name: Mapped[str | None] = mapped_column(String(150), nullable=True)
     username: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    is_blocked: Mapped[bool] = mapped_column(Boolean, default=False)
+    user_type: Mapped[str] = mapped_column(String(20), default="private") # private / company
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # Связи

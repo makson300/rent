@@ -24,6 +24,17 @@ def get_categories_kb():
 @router.callback_query(F.data == "start_listing_create")
 async def start_listing_create(callback: types.CallbackQuery, state: FSMContext):
     """Начало создания объявления после заглушки оплаты"""
+    from db.base import async_session
+    from db.crud.user import get_user
+    
+    async with async_session() as session:
+        user = await get_user(session, callback.from_user.id)
+        
+    if not user or not user.phone:
+        await callback.message.answer("⚠️ Сначала необходимо зарегистрироваться! Используйте /start.")
+        await callback.answer()
+        return
+
     await callback.message.answer(
         "📝 <b>Создание объявления (Шаг 1/9)</b>\n\n"
         "Выберите город из списка:",
