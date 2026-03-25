@@ -3,6 +3,7 @@ from aiogram import Router, types, F
 from aiogram.fsm.context import FSMContext
 from bot.keyboards import get_main_menu
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from bot.states.education import EducationApplyStates
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -69,7 +70,6 @@ async def edu_kids(callback: types.CallbackQuery):
 
 @router.callback_query(F.data == "edu_apply_kids")
 async def start_edu_apply(callback: types.CallbackQuery, state: FSMContext):
-    from bot.states.education import EducationApplyStates
     await callback.message.answer("📝 <b>Заявка на обучение</b>\n\nВведите имя ребенка:", parse_mode="HTML")
     await state.set_state(EducationApplyStates.waiting_for_name)
     await callback.answer()
@@ -78,21 +78,17 @@ async def start_edu_apply(callback: types.CallbackQuery, state: FSMContext):
 async def process_edu_name(message: types.Message, state: FSMContext):
     await state.update_data(child_name=message.text)
     await message.answer("Укажите возраст ребенка:")
-    from bot.states.education import EducationApplyStates
     await state.set_state(EducationApplyStates.waiting_for_age)
 
 @router.message(EducationApplyStates.waiting_for_age)
 async def process_edu_age(message: types.Message, state: FSMContext):
     await state.update_data(child_age=message.text)
     await message.answer("Оставьте контактный номер телефона для связи:")
-    from bot.states.education import EducationApplyStates
     await state.set_state(EducationApplyStates.waiting_for_phone)
 
 @router.message(EducationApplyStates.waiting_for_phone)
 async def process_edu_phone(message: types.Message, state: FSMContext):
     data = await state.get_data()
-    # In a real scenario, we'd find the admin ID. For now, we'll log it and tell the user.
-    # We can also try to send a message to the user who is the admin (VMANDCO logic) if we had their ID.
     
     report = (
         "🚀 <b>НОВАЯ ЗАЯВКА (ДЕТИ)</b>\n\n"
@@ -102,9 +98,8 @@ async def process_edu_phone(message: types.Message, state: FSMContext):
         f"Отправитель: @{message.from_user.username or '—'}"
     )
     
-    # Notify admin (stub for now, but we can assume the user wants it to go somewhere).
-    # Since we don't have a reliable ADMIN_ID yet, we just confirm to the user.
-    # TODO: In future, use bot.send_message(ADMIN_ID, report)
+    # Notify admin
+    # TODO: await bot.send_message(ADMIN_ID, report)
     
     await state.clear()
     await message.answer(
