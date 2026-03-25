@@ -6,13 +6,15 @@ from bot.states.feedback import FeedbackStates
 router = Router()
 
 
+from bot.constants import CITY_MAP
+
 @router.message(F.text == "🔍 Арендовать")
 async def rental_menu(message: types.Message):
     from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-    from bot.handlers.listing_create import CITIES
     
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=city, callback_data=f"view_city_{city}")] for city in CITIES
+        [InlineKeyboardButton(text=city_name, callback_data=f"view_city_{city_id}")]
+        for city_id, city_name in CITY_MAP.items()
     ])
     
     await message.answer(

@@ -7,7 +7,7 @@ from bot.handlers import (
     start_router, profile_router, menu_router, 
     listing_create_router, catalog_router, admin_router, 
     admin_moderation_router, my_listings_router, 
-    education_router, sales_router
+    education_router, sales_router, operators_router
 )
 from db.base import init_db
 
@@ -53,6 +53,7 @@ async def main():
     dp.include_router(my_listings_router)
     dp.include_router(education_router)
     dp.include_router(sales_router)
+    dp.include_router(operators_router)
 
 
     logger.info("Bot starting polling...")

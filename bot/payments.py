@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 import logging
 from yookassa import Configuration, Payment
@@ -10,14 +11,15 @@ if YOOKASSA_SHOP_ID and YOOKASSA_SECRET_KEY:
     Configuration.secret_key = YOOKASSA_SECRET_KEY
 
 async def create_payment(amount: float, description: str, return_url: str):
-    """Создание платежа в ЮKassa"""
+    """Создание платежа в ЮKassa (в отдельном потоке)"""
     if not Configuration.account_id:
         logger.error("Yookassa credentials not set")
         return None
 
     idempotency_key = str(uuid.uuid4())
-    try:
-        payment = Payment.create({
+
+    def _create():
+        return Payment.create({
             "amount": {
                 "value": f"{amount:.2f}",
                 "currency": "RUB"
@@ -30,15 +32,17 @@ async def create_payment(amount: float, description: str, return_url: str):
             "description": description
         }, idempotency_key)
 
+    try:
+        payment = await asyncio.to_thread(_create)
         return payment
     except Exception as e:
         logger.error(f"Payment creation error: {e}")
         return None
 
 async def check_payment_status(payment_id: str):
-    """Проверка статуса платежа"""
+    """Проверка статуса платежа (в отдельном потоке)"""
     try:
-        payment = Payment.find_one(payment_id)
+        payment = await asyncio.to_thread(Payment.find_one, payment_id)
         return payment.status
     except Exception as e:
         logger.error(f"Payment status check error: {e}")

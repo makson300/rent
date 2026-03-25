@@ -7,17 +7,18 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemo
 router = Router()
 logger = logging.getLogger(__name__)
 
-# Заглушка городов и категорий
-CITIES = ["Москва", "Санкт-Петербург", "Казань", "Екатеринбург", "Новосибирск"]
-CATEGORIES = ["Камеры и оптика", "Квадрокоптеры", "Кемпинг", "Спорт", "Инструменты"]
+from bot.constants import CITIES, CATEGORIES
 
+
+from bot.constants import CITY_MAP, CATEGORY_MAP
 
 def get_cities_kb():
-    kb = [[KeyboardButton(text=city)] for city in CITIES]
+    kb = [[KeyboardButton(text=city_name)] for city_name in CITY_MAP.values()]
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
 
 def get_categories_kb():
-    kb = [[KeyboardButton(text=cat)] for cat in CATEGORIES]
+    # Only show main rental categories here (0, 1, 2)
+    kb = [[KeyboardButton(text=CATEGORY_MAP[i])] for i in range(3)]
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
 
 
@@ -159,7 +160,10 @@ async def finish_photos(callback: types.CallbackQuery, state: FSMContext):
         
         # Определяем тип объявления и категорию
         l_type = data.get("listing_type", "rental")
-        cat_id = data.get("category_id", 1) # По умолчанию 1 (Аренда)
+        # Map category name to DB id
+        cat_name = data.get("category", "Дроны")
+        cat_map = {"Дроны": 1, "Техника для съемки": 4, "Другое": 5, "Операторы": 6}
+        cat_id = data.get("category_id") or cat_map.get(cat_name, 1)
         
         # Получаем созданное объявление (с ID)
         new_listing = await create_listing(
