@@ -45,6 +45,11 @@ async def rent_out_menu(message: types.Message):
             "🔹 12 месяцев суммарно — 9 000 ₽\n\n"
             "<i>Выберите пакет для продолжения публикации.</i>"
         )
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="💳 Пакет 1 мес (2500 ₽)", callback_data="pay_tariff_company_1")],
+            [InlineKeyboardButton(text="💳 Пакет 6 мес (7000 ₽)", callback_data="pay_tariff_company_6")],
+            [InlineKeyboardButton(text="💳 Пакет 12 мес (9000 ₽)", callback_data="pay_tariff_company_12")]
+        ])
     else:
         text = (
             "👤 <b>Размещение для частных лиц</b>\n\n"
@@ -58,11 +63,67 @@ async def rent_out_menu(message: types.Message):
             "🔹 12 месяцев суммарно — 9 000 ₽\n\n"
             "<i>Вы можете выбрать разовое размещение или выгодный пакет.</i>"
         )
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="💳 1 объявление / 1 мес (700 ₽)", callback_data="pay_tariff_private_1")],
+            [InlineKeyboardButton(text="💳 Пакет 5 обък. / 1 мес (2500 ₽)", callback_data="pay_tariff_company_1")],
+            [InlineKeyboardButton(text="⚙️ Другие варианты", callback_data="more_tariffs")]
+        ])
         
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="💳 Выбрать тариф и оплатить", callback_data="start_listing_create")]
-    ])
     await message.answer(text, parse_mode="HTML", reply_markup=kb)
+
+@router.callback_query(F.data.startswith("pay_tariff_"))
+async def process_payment_init(callback: types.CallbackQuery):
+    """Инициация оплаты через ЮKassa"""
+    parts = callback.data.split("_")
+    u_type = parts[2]
+    duration = parts[3]
+
+    prices = {
+        "private": {"1": 700, "6": 2500, "12": 3500},
+        "company": {"1": 2500, "6": 7000, "12": 9000}
+    }
+
+    amount = prices.get(u_type, {}).get(duration, 100)
+    description = f"Оплата размещения ({u_type}, {duration} мес) в RentBot"
+
+    from bot.payments import create_payment
+    # В реальном боте return_url должен вести на бота или веб-хук
+    payment = await create_payment(amount, description, "https://t.me/rent_equipment_bot")
+
+    if payment and payment.confirmation and payment.confirmation.confirmation_url:
+        kb = types.InlineKeyboardMarkup(inline_keyboard=[
+            [types.InlineKeyboardButton(text="🔗 Перейти к оплате", url=payment.confirmation.confirmation_url)],
+            [types.InlineKeyboardButton(text="✅ Я оплатил", callback_data=f"check_pay_{payment.id}")]
+        ])
+        await callback.message.answer(
+            f"💳 <b>Счет на оплату сформирован</b>\n\n"
+            f"Сумма: {amount} ₽\n"
+            f"Услуга: {description}\n\n"
+            f"После оплаты нажмите кнопку «Я оплатил».",
+            parse_mode="HTML",
+            reply_markup=kb
+        )
+    else:
+        await callback.answer("Ошибка при создании платежа. Попробуйте позже.", show_alert=True)
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("check_pay_"))
+async def check_payment_handler(callback: types.CallbackQuery, state: FSMContext):
+    payment_id = callback.data.split("_")[2]
+    from bot.payments import check_payment_status
+    status = await check_payment_status(payment_id)
+
+    if status == "succeeded":
+        await callback.message.answer(
+            "✅ <b>Оплата прошла успешно!</b>\n\n"
+            "Теперь вы можете приступить к созданию объявления.",
+            parse_mode="HTML"
+        )
+        # Переходим к созданию
+        from bot.handlers.listing_create import start_listing_create
+        await start_listing_create(callback, state)
+    else:
+        await callback.answer(f"Платеж еще не подтвержден. Статус: {status}", show_alert=True)
 
 
 @router.message(F.text == "📩 Обратная связь")
