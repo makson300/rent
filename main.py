@@ -7,8 +7,11 @@ from bot.handlers import (
     start_router, profile_router, menu_router, 
     listing_create_router, catalog_router, admin_router, 
     admin_moderation_router, my_listings_router, 
-    education_router, sales_router
+    education_router, sales_router, operators_router,
+    emergency_router, search_router, reviews_router
 )
+from bot.commands import set_bot_commands
+from bot.middlewares.throttling import ThrottlingMiddleware
 from db.base import init_db
 
 logging.basicConfig(
@@ -42,6 +45,12 @@ async def main():
     bot = Bot(token=BOT_TOKEN, session=session)
     dp = Dispatcher(storage=MemoryStorage())
 
+    # Регистрация мидлварей
+    dp.message.middleware(ThrottlingMiddleware())
+
+    # Установка команд бота
+    await set_bot_commands(bot)
+
     # Подключение роутеров
     logger.info("Registering routers...")
     dp.include_router(admin_router) # Админский роутер первым!
@@ -53,6 +62,10 @@ async def main():
     dp.include_router(my_listings_router)
     dp.include_router(education_router)
     dp.include_router(sales_router)
+    dp.include_router(operators_router)
+    dp.include_router(emergency_router)
+    dp.include_router(search_router)
+    dp.include_router(reviews_router)
 
 
     logger.info("Bot starting polling...")

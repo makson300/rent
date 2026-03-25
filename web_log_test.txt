@@ -1,22 +1,22 @@
-/app/web/dashboard.py:33: DeprecationWarning: 
+/app/web/dashboard.py:33: DeprecationWarning:
         on_event is deprecated, use lifespan event handlers instead.
 
         Read more about it in the
         [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
-        
+
   @app.on_event("startup")
 INFO:     Will watch for changes in these directories: ['/app']
 INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-INFO:     Started reloader process [9157] using StatReload
-INFO:     Started server process [9307]
+INFO:     Started reloader process [11283] using StatReload
+INFO:     Started server process [11427]
 INFO:     Waiting for application startup.
-2026-03-25 23:11:28,779 - INFO - dashboard - Starting Web Dashboard...
-2026-03-25 23:11:28,844 - INFO - dashboard - Database initialized for web dashboard.
+2026-03-25 23:13:03,175 - INFO - dashboard - Starting Web Dashboard...
+2026-03-25 23:13:03,224 - INFO - dashboard - Database initialized for web dashboard.
 INFO:     Application startup complete.
-INFO:     127.0.0.1:34064 - "HEAD / HTTP/1.1" 405 Method Not Allowed
-INFO:     127.0.0.1:34068 - "HEAD /ai-insights HTTP/1.1" 405 Method Not Allowed
+INFO:     127.0.0.1:53500 - "HEAD / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53514 - "HEAD /ai-insights HTTP/1.1" 200 OK
 INFO:     Shutting down
 INFO:     Waiting for application shutdown.
 INFO:     Application shutdown complete.
-INFO:     Finished server process [9307]
-INFO:     Stopping reloader process [9157]
+INFO:     Finished server process [11427]
+INFO:     Stopping reloader process [11283]

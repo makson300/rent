@@ -2,7 +2,7 @@ from aiogram import Router, types, F
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from db.base import async_session
 from db.crud.listing import get_listings_by_filter
-from bot.handlers.listing_create import CITIES, CATEGORIES
+from bot.constants import CITY_MAP, CATEGORY_MAP, CITY_REVERSE_MAP, CATEGORY_REVERSE_MAP
 
 router = Router()
 
@@ -10,12 +10,15 @@ router = Router()
 @router.callback_query(F.data.startswith("view_city_"))
 async def show_city_categories(callback: types.CallbackQuery):
     """Выбор категории после выбора города в каталоге"""
-    city = callback.data.split("_")[2]
+    city_id = callback.data.split("_")[2]
+    city_name = CITY_MAP.get(city_id, city_id)
     
     # Создаем клавиатуру с категориями
-    # В callback_data передаем и город, и категорию
+    # Используем компактный формат view_cat:city_id:cat_id:page
+    # Но для совместимости со старым кодом пока оставим похожий формат, но с ID
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=cat, callback_data=f"view_cat_{city}_{cat}")] for cat in CATEGORIES
+        [InlineKeyboardButton(text=name, callback_data=f"view_cat:{city_id}:{cid}:0")]
+        for cid, name in CATEGORY_MAP.items() if int(cid) < 6
     ])
     kb.inline_keyboard.append([InlineKeyboardButton(text="🔙 Назад к городам", callback_data="back_to_cities")])
     
@@ -30,10 +33,8 @@ async def show_city_categories(callback: types.CallbackQuery):
 @router.callback_query(F.data == "back_to_cities")
 async def back_to_cities(callback: types.CallbackQuery):
     """Возврат к выбору города"""
-    from bot.handlers.menu import rental_menu
-    # rental_menu ожидает Message, но мы можем вызвать его вручную или просто отправить заново
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=city, callback_data=f"view_city_{city}")] for city in CITIES
+        [InlineKeyboardButton(text=name, callback_data=f"view_city_{cid}")] for cid, name in CITY_MAP.items()
     ])
     await callback.message.edit_text(
         "🔍 <b>Раздел «Аренда»</b>\n\nВыберите город из списка ниже 🏙",
@@ -43,25 +44,27 @@ async def back_to_cities(callback: types.CallbackQuery):
     await callback.answer()
 
 
-@router.callback_query(F.data.startswith("view_cat_"))
+@router.callback_query(F.data.startswith("view_cat:"))
 async def show_category_listings(callback: types.CallbackQuery):
     """Показ объявлений для выбранного города и категории"""
-    parts = callback.data.split("_")
-    city = parts[2]
-    category = parts[3]
+    parts = callback.data.split(":")
+    city_id = parts[1]
+    cat_id = parts[2]
+    page = int(parts[3])
+
+    city_name = CITY_MAP.get(city_id, "Неизвестно")
+    cat_name = CATEGORY_MAP.get(cat_id, "Неизвестно")
     
     async with async_session() as session:
-        # Для простоты пока ищем по имени категории. 
-        # В идеале в БД должны быть записи категорий с такими именами.
-        # Пока в crud.listing мы захардкодили join по имени.
-        listings = await get_listings_by_filter(session, city=city, category=category)
+        # Поиск по city_name и cat_id
+        listings = await get_listings_by_filter(session, city=city_name, category=cat_name)
         
     if not listings:
         kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🔙 Назад к категориям", callback_data=f"view_city_{city}")]
+            [InlineKeyboardButton(text="🔙 Назад к категориям", callback_data=f"view_city_{city_id}")]
         ])
         await callback.message.edit_text(
-            f"😔 В городе <b>{city}</b> в категории <b>{category}</b> пока нет объявлений.",
+            f"😔 В городе <b>{city_name}</b> в категории <b>{cat_name}</b> пока нет объявлений.",
             parse_mode="HTML",
             reply_markup=kb
         )

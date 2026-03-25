@@ -9,10 +9,10 @@ router = Router()
 @router.message(F.text == "🔍 Арендовать")
 async def rental_menu(message: types.Message):
     from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-    from bot.handlers.listing_create import CITIES
+    from bot.constants import CITY_MAP
     
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=city, callback_data=f"view_city_{city}")] for city in CITIES
+        [InlineKeyboardButton(text=name, callback_data=f"view_city_{cid}")] for cid, name in CITY_MAP.items()
     ])
     
     await message.answer(
@@ -106,6 +106,7 @@ async def feedback_type_selected(callback: types.CallbackQuery, state: FSMContex
 
 @router.message(FeedbackStates.waiting_for_message, F.text)
 async def process_feedback_message(message: types.Message, state: FSMContext):
+    from aiogram.utils.markdown import html_decoration as hd
     data = await state.get_data()
     f_type = data.get("feedback_type", "proposal")
     
@@ -120,7 +121,7 @@ async def process_feedback_message(message: types.Message, state: FSMContext):
         new_feedback = Feedback(
             user_id=user_db_id,
             type=f_type,
-            message=message.text,
+            message=hd.quote(message.text),
             status="new"
         )
         session.add(new_feedback)

@@ -7,23 +7,22 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemo
 router = Router()
 logger = logging.getLogger(__name__)
 
-# Заглушка городов и категорий
-CITIES = ["Москва", "Санкт-Петербург", "Казань", "Екатеринбург", "Новосибирск"]
-CATEGORIES = ["Камеры и оптика", "Квадрокоптеры", "Кемпинг", "Спорт", "Инструменты"]
-
+from bot.constants import CITY_MAP, CATEGORY_MAP
 
 def get_cities_kb():
-    kb = [[KeyboardButton(text=city)] for city in CITIES]
+    kb = [[KeyboardButton(text=city)] for city in CITY_MAP.values()]
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
 
 def get_categories_kb():
-    kb = [[KeyboardButton(text=cat)] for cat in CATEGORIES]
+    # Only show rental categories (id < 6)
+    kb = [[KeyboardButton(text=name)] for cid, name in CATEGORY_MAP.items() if int(cid) < 6]
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
 
 
 @router.callback_query(F.data == "start_listing_create")
-async def start_listing_create(callback: types.CallbackQuery, state: FSMContext):
-    """Начало создания объявления после заглушки оплаты"""
+async def start_listing_create_payment_choice(callback: types.CallbackQuery, state: FSMContext):
+    """Выбор тарифа перед созданием объявления"""
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
     from db.base import async_session
     from db.crud.user import get_user
     
@@ -35,6 +34,76 @@ async def start_listing_create(callback: types.CallbackQuery, state: FSMContext)
         await callback.answer()
         return
 
+    user_type = user.user_type
+
+    if user_type == "company":
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔹 1 месяц (5 объявлений) — 2 500 ₽", callback_data="pay_rent_2500")],
+            [InlineKeyboardButton(text="🔹 6 месяцев (5 объявлений) — 7 000 ₽", callback_data="pay_rent_7000")],
+            [InlineKeyboardButton(text="🔹 12 месяцев (5 объявлений) — 9 000 ₽", callback_data="pay_rent_9000")],
+        ])
+    else:
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔸 1 мес (1 объявление) — 700 ₽", callback_data="pay_rent_700")],
+            [InlineKeyboardButton(text="🔸 6 мес (1 объявление) — 2 500 ₽", callback_data="pay_rent_2500_single")],
+            [InlineKeyboardButton(text="🔸 12 мес (1 объявление) — 3 500 ₽", callback_data="pay_rent_3500_single")],
+            [InlineKeyboardButton(text="🔹 Пакет 5 объявлений (от 2 500 ₽)", callback_data="show_packages")],
+        ])
+
+    await callback.message.edit_text(
+        "💳 <b>Выберите тарифный план для размещения:</b>",
+        parse_mode="HTML",
+        reply_markup=kb
+    )
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("pay_rent_"))
+async def process_rent_payment(callback: types.CallbackQuery, state: FSMContext):
+    """Создание платежа через ЮKassa"""
+    from bot.services.yookassa_service import create_payment
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+    amount = int(callback.data.split("_")[2])
+    # Уникальная ссылка возврата (можно использовать bot username)
+    bot_info = await callback.bot.get_me()
+    return_url = f"https://t.me/{bot_info.username}"
+
+    try:
+        payment = await create_payment(amount, f"Оплата размещения объявления ({amount} RUB)", return_url)
+
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔗 Перейти к оплате", url=payment.confirmation.confirmation_url)],
+            [InlineKeyboardButton(text="✅ Проверить оплату", callback_data=f"check_pay_rent_{payment.id}")]
+        ])
+
+        await callback.message.answer(
+            f"💰 <b>Счет сформирован!</b>\nСумма: {amount} ₽\n\n"
+            "После оплаты нажмите кнопку «Проверить оплату».",
+            parse_mode="HTML",
+            reply_markup=kb
+        )
+    except Exception as e:
+        logger.error(f"Yookassa error: {e}")
+        await callback.message.answer("❌ Ошибка при формировании счета. Попробуйте позже.")
+
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("check_pay_rent_"))
+async def check_rent_payment(callback: types.CallbackQuery, state: FSMContext):
+    """Проверка статуса платежа"""
+    from bot.services.yookassa_service import get_payment_status
+    payment_id = callback.data.replace("check_pay_rent_", "")
+
+    status = await get_payment_status(payment_id)
+
+    if status == "succeeded":
+        await callback.message.answer("✅ Оплата прошла успешно! Приступаем к созданию объявления.")
+        await start_listing_create(callback, state)
+    else:
+        await callback.answer("⏳ Оплата еще не получена или в процессе (статус: " + status + ")", show_alert=True)
+
+async def start_listing_create(callback: types.CallbackQuery, state: FSMContext):
+    """Начало создания объявления (Шаг 1)"""
     await callback.message.answer(
         "📝 <b>Создание объявления (Шаг 1/9)</b>\n\n"
         "Выберите город из списка:",
@@ -67,14 +136,16 @@ async def process_category(message: types.Message, state: FSMContext):
 
 @router.message(ListingCreateStates.waiting_for_title, F.text)
 async def process_title(message: types.Message, state: FSMContext):
-    await state.update_data(title=message.text)
+    from aiogram.utils.markdown import html_decoration as hd
+    await state.update_data(title=hd.quote(message.text))
     await message.answer("📝 <b>Шаг 4/9</b>\nВведите подробное описание:")
     await state.set_state(ListingCreateStates.waiting_for_description)
 
 
 @router.message(ListingCreateStates.waiting_for_description, F.text)
 async def process_description(message: types.Message, state: FSMContext):
-    await state.update_data(description=message.text)
+    from aiogram.utils.markdown import html_decoration as hd
+    await state.update_data(description=hd.quote(message.text))
     await message.answer("📝 <b>Шаг 5/9</b>\nУкажите условия залога (требуется ли паспорт, депозит и т.д.):")
     await state.set_state(ListingCreateStates.waiting_for_deposit)
 

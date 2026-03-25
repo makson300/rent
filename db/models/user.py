@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from db.models.listing import Listing
     from db.models.feedback import Feedback
+    from db.models.review import Review
 
 
 class User(Base):
@@ -24,4 +25,7 @@ class User(Base):
     # Связи
     listings: Mapped[list["Listing"]] = relationship("Listing", back_populates="user")
     feedbacks: Mapped[list["Feedback"]] = relationship("Feedback", back_populates="user")
+    reviews_received: Mapped[list["Review"]] = relationship(
+        "Review", foreign_keys="Review.to_user_id", back_populates="subject"
+    )
 

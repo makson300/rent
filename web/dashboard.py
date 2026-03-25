@@ -15,6 +15,7 @@ from db.base import async_session, init_db
 from db.models.user import User
 from db.models.listing import Listing
 from db.models.education import EducationApplication
+from bot.services.ai_growth_advisor import get_growth_insights
 
 # Configure logging
 logging.basicConfig(
@@ -47,6 +48,7 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 @app.get("/")
+@app.head("/")
 async def home(request: Request):
     try:
         async with async_session() as session:
@@ -175,6 +177,19 @@ async def applications(request: Request):
         )
     except Exception as e:
         logger.error(f"Error rendering applications: {e}", exc_info=True)
+        raise e
+
+@app.get("/ai-insights")
+@app.head("/ai-insights")
+async def ai_insights_page(request: Request):
+    """Страница с ИИ-рекомендациями по росту"""
+    try:
+        recommendations = await get_growth_insights()
+        return templates.TemplateResponse(
+            request=request, name="ai_advisor.html", context={"recommendations": recommendations}
+        )
+    except Exception as e:
+        logger.error(f"Error rendering AI insights: {e}", exc_info=True)
         raise e
 
 if __name__ == "__main__":

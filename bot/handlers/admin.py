@@ -15,15 +15,20 @@ logger = logging.getLogger(__name__)
 
 # Список ID администраторов (из конфига и жестко заданные)
 ADMIN_IDS = [150190533, 506450098] 
+ADMIN_USERNAMES = ["@vmandco", "vmandco"]
 
-def is_admin(user_id: int) -> bool:
+def is_admin(user_id: int, username: str | None = None) -> bool:
     from bot.config import ADMIN_IDS as CONFIG_ADMIN_IDS
-    return user_id in ADMIN_IDS or user_id in CONFIG_ADMIN_IDS
+    if user_id in ADMIN_IDS or user_id in CONFIG_ADMIN_IDS:
+        return True
+    if username and username.lower() in [u.lower().strip("@") for u in ADMIN_USERNAMES]:
+        return True
+    return False
 
 @router.message(Command("me"))
 async def cmd_me(message: types.Message):
     """Диагностика ID и прав"""
-    status = "✅ АДМИН" if is_admin(message.from_user.id) else "❌ Покупатель"
+    status = "✅ АДМИН" if is_admin(message.from_user.id, message.from_user.username) else "❌ Покупатель"
     await message.answer(f"🆔 Ваш ID: <code>{message.from_user.id}</code>\n🔑 Статус: {status}", parse_mode="HTML")
 
 
@@ -31,7 +36,7 @@ async def cmd_me(message: types.Message):
 @router.message(Command("admin"))
 async def admin_main(message: types.Message):
     """Главный вход в админку"""
-    if not is_admin(message.from_user.id):
+    if not is_admin(message.from_user.id, message.from_user.username):
         await message.answer("⛔️ У вас нет прав доступа к этой команде.")
         return
 
@@ -178,7 +183,7 @@ async def reject_listing(callback: types.CallbackQuery):
 @router.message(F.forward_from_chat | F.forward_from | F.forward_origin)
 async def process_forwarded_post(message: types.Message):
     """Обработка пересланного сообщения из канала партнера"""
-    if not is_admin(message.from_user.id):
+    if not is_admin(message.from_user.id, message.from_user.username):
         return
         
     logger.info(f"Admin {message.from_user.id} forwarded a post")
@@ -206,7 +211,12 @@ async def admin_cancel(callback: types.CallbackQuery):
     await callback.message.delete()
     await callback.answer("Действие отменено")
 
-    listing_text = callback.message.reply_to_message.text or callback.message.reply_to_message.caption or ""
+    orig_msg = callback.message.reply_to_message
+    if not orig_msg:
+        await callback.answer("Ошибка: исходное сообщение не найдено.")
+        return
+
+    listing_text = orig_msg.text or orig_msg.caption or ""
     if not listing_text:
         await callback.answer("Ошибка: текст не найден.", show_alert=True)
         return

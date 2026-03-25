@@ -6,6 +6,9 @@ load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./rentbot.db")
 
+YOOKASSA_SHOP_ID = os.getenv("YOOKASSA_SHOP_ID", "1310834")
+YOOKASSA_SECRET_KEY = os.getenv("YOOKASSA_SECRET_KEY")
+
 # Telegram ID администраторов (через запятую в .env)
 _admin_ids_raw = os.getenv("ADMIN_IDS", "")
 ADMIN_IDS: list[int] = [int(x.strip()) for x in _admin_ids_raw.split(",") if x.strip()]
