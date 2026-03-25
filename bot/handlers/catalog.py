@@ -85,10 +85,12 @@ async def show_category_listings(callback: types.CallbackQuery):
         return
         
     listing = current_listings[0] # Display one card
+    availability = "✅ Свободно" if not listing.booked_dates else f"📅 Занято: {listing.booked_dates}"
     text = (
         f"🔍 <b>{city_name} | {cat_name}</b> ({page+1}/{total})\n\n"
         f"📦 <b>{listing.title}</b>\n\n"
         f"📝 {listing.description}\n\n"
+        f"📊 <b>Статус:</b> {availability}\n\n"
         f"💰 <b>Цены:</b>\n{listing.price_list}\n\n"
         f"🚚 <b>Доставка:</b> {listing.delivery_terms}\n"
         f"🛡 <b>Залог:</b> {listing.deposit_terms}\n\n"

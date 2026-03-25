@@ -95,7 +95,7 @@ async def process_payment_init(callback: types.CallbackQuery):
     if payment and payment.confirmation and payment.confirmation.confirmation_url:
         kb = types.InlineKeyboardMarkup(inline_keyboard=[
             [types.InlineKeyboardButton(text="🔗 Перейти к оплате", url=payment.confirmation.confirmation_url)],
-            [types.InlineKeyboardButton(text="✅ Я оплатил", callback_data=f"check_pay_{payment.id}")]
+            [types.InlineKeyboardButton(text="✅ Я оплатил", callback_data=f"check_pay_rent_{payment.id}")]
         ])
         await callback.message.answer(
             f"💳 <b>Счет на оплату сформирован</b>\n\n"
@@ -109,9 +109,9 @@ async def process_payment_init(callback: types.CallbackQuery):
         await callback.answer("Ошибка при создании платежа. Попробуйте позже.", show_alert=True)
     await callback.answer()
 
-@router.callback_query(F.data.startswith("check_pay_"))
+@router.callback_query(F.data.startswith("check_pay_rent_"))
 async def check_payment_handler(callback: types.CallbackQuery, state: FSMContext):
-    payment_id = callback.data.split("_")[2]
+    payment_id = callback.data.split("_")[3]
     from bot.payments import check_payment_status
     status = await check_payment_status(payment_id)
 
