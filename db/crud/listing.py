@@ -5,7 +5,7 @@ from db.models.listing import Listing, ListingPhoto
 
 async def create_listing(
     session: AsyncSession,
-    user_id: int,
+    user_id: int,  # This should be the internal DB ID
     category_id: int,
     city: str,
     title: str,
@@ -14,7 +14,10 @@ async def create_listing(
     delivery_terms: str,
     price_list: str,
     contacts: str,
-    photo_ids: list[str]
+    photo_ids: list[str],
+    listing_type: str = "rental",
+    partner_id: str | None = None,
+    status: str = "moderation"
 ) -> Listing:
     """Создать новое объявление с фото"""
     listing = Listing(
@@ -27,7 +30,9 @@ async def create_listing(
         delivery_terms=delivery_terms,
         price_list=price_list,
         contacts=contacts,
-        status="moderation"
+        listing_type=listing_type,
+        partner_id=partner_id,
+        status=status
     )
     session.add(listing)
     await session.flush()  # получаем id объявления

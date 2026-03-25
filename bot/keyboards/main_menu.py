@@ -14,8 +14,8 @@ def get_main_menu() -> ReplyKeyboardMarkup:
                 KeyboardButton(text="🏷 Сдать оборудование"),
             ],
             [
+                KeyboardButton(text="🛍 Магазин"),
                 KeyboardButton(text="🎓 Обучение"),
-                KeyboardButton(text="🆘 ЧП"),
             ],
             [
                 KeyboardButton(text="📋 Мои объявления"),
@@ -23,8 +23,12 @@ def get_main_menu() -> ReplyKeyboardMarkup:
             ],
             [
                 KeyboardButton(text="📜 Правила и условия"),
-                KeyboardButton(text="🎧 Поддержка"),
+                KeyboardButton(text="🆘 ЧП"),
             ],
+            [
+                KeyboardButton(text="📩 Обратная связь"),
+            ],
+
         ],
         resize_keyboard=True,
     )

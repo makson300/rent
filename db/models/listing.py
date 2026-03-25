@@ -12,6 +12,9 @@ class Listing(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     category_id: Mapped[int] = mapped_column(ForeignKey("categories.id"))
     
+    user: Mapped["User"] = relationship("User", back_populates="listings")
+
+    
     city: Mapped[str] = mapped_column(String(100))
     title: Mapped[str] = mapped_column(String(100))
     description: Mapped[str] = mapped_column(Text)
@@ -19,6 +22,11 @@ class Listing(Base):
     delivery_terms: Mapped[str] = mapped_column(Text)
     price_list: Mapped[str] = mapped_column(Text)
     contacts: Mapped[str] = mapped_column(String(150))
+    
+    # rental / sale
+    listing_type: Mapped[str] = mapped_column(String(20), default="rental")
+    # if it's from a partner
+    partner_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
     
     # status: moderation / active / rejected / expired
     status: Mapped[str] = mapped_column(String(20), default="moderation")

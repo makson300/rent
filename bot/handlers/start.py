@@ -21,7 +21,9 @@ async def cmd_start(message: types.Message, state: FSMContext):
         # Пользователь уже зарегистрирован — показываем меню
         await message.answer(
             f"👋 С возвращением, {message.from_user.first_name}!\n\n"
-            "Выберите раздел:",
+            "Выберите раздел в меню ниже ⬇️\n"
+            "<i>Если меню не появилось, используйте команду /menu</i>",
+            parse_mode="HTML",
             reply_markup=get_main_menu(),
         )
         return
@@ -57,11 +59,24 @@ async def cmd_start(message: types.Message, state: FSMContext):
     await state.set_state(RegistrationStates.waiting_for_contact)
 
 
+@router.message(F.text == "/menu")
+@router.message(F.text == "🔝 В главное меню")
+async def show_main_menu_command(message: types.Message, state: FSMContext):
+    """Явный вызов главного меню"""
+    await state.clear()
+    await message.answer(
+        "📱 <b>Главное меню</b>\n\n"
+        "Выберите интересующий вас раздел:",
+        parse_mode="HTML",
+        reply_markup=get_main_menu()
+    )
+
+
 @router.message(RegistrationStates.waiting_for_contact, F.contact)
 async def process_contact(message: types.Message, state: FSMContext):
     """Получение контакта — завершение регистрации"""
     phone = message.contact.phone_number
-    logger.info("Регистрация: пользователь %s отправил контакт %s", message.from_user.id, phone)
+    logger.info("Registration: user %s sent contact %s", message.from_user.id, phone)
 
     async with async_session() as session:
         await update_user_phone(session, message.from_user.id, phone)

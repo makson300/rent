@@ -13,9 +13,38 @@ async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit
 
 
 async def init_db():
-    """Создаёт все таблицы при первом запуске"""
+    """Создаёт все таблицы и начальные данные при первом запуске"""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    
+    # Сидинг начальных данных
+    from db.models.category import Category
+    from db.models.user import User
+    from sqlalchemy import select
+    
+    async with async_session() as session:
+        # Проверяем наличие категорий
+        result = await session.execute(select(Category).limit(1))
+        if not result.scalar():
+            categories = [
+                Category(id=1, name="Аренда", type="rent"),
+                Category(id=2, name="Продажа", type="sale"),
+                Category(id=3, name="Обучение", type="course")
+            ]
+            session.add_all(categories)
+            
+        # Проверяем наличие системного пользователя
+        result = await session.execute(select(User).where(User.id == 1))
+        if not result.scalar():
+            system_user = User(
+                id=1,
+                telegram_id=0,
+                first_name="System",
+                username="system_bot"
+            )
+            session.add(system_user)
+            
+        await session.commit()
 
 
 async def get_session() -> AsyncSession:

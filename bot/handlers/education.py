@@ -98,8 +98,22 @@ async def process_edu_phone(message: types.Message, state: FSMContext):
         f"Отправитель: @{message.from_user.username or '—'}"
     )
     
-    # Notify admin
-    # TODO: await bot.send_message(ADMIN_ID, report)
+    # Save to DB
+    from db.models.education import EducationApplication
+    from db.base import async_session
+    
+    async with async_session() as session:
+        new_app = EducationApplication(
+            user_id=message.from_user.id,
+            child_name=data['child_name'],
+            age=data['child_age'],
+            phone=message.text
+        )
+        session.add(new_app)
+        await session.commit()
+        logger.info(f"Saved new education application from {message.from_user.id}")
+
+    # Notify admin (optional logging/notification here)
     
     await state.clear()
     await message.answer(

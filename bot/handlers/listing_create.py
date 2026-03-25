@@ -70,8 +70,11 @@ async def process_description(message: types.Message, state: FSMContext):
 
 @router.message(ListingCreateStates.waiting_for_deposit, F.text)
 async def process_deposit(message: types.Message, state: FSMContext):
+    data = await state.get_data()
+    # If it's a sale, we might want to skip or label it differently, 
+    # but for now we'll just allow setting it or skip if empty.
     await state.update_data(deposit_terms=message.text)
-    await message.answer("📝 <b>Шаг 6/9</b>\nУстаните условия доставки/самовывоза:")
+    await message.answer("📝 <b>Шаг 6/9</b>\nУкажите условия доставки/самовывоза:")
     await state.set_state(ListingCreateStates.waiting_for_delivery)
 
 
@@ -135,24 +138,32 @@ async def finish_photos(callback: types.CallbackQuery, state: FSMContext):
     # Сохраняем в БД
     from db.base import async_session
     from db.crud.listing import create_listing
+    from db.crud.user import get_user
     from bot.keyboards.main_menu import get_main_menu
     
-    # Для MVP используем id = 1 вместо реального (заглушка категории) пока не сделаем crud-поиск категории
-    # То же самое с юзером, но у нас есть user id из телеграма.
     async with async_session() as session:
-        # TODO: Заменить на реальные IDs когда создадим их в БД
+        # Получаем реального ID пользователя из БД
+        db_user = await get_user(session, callback.from_user.id)
+        user_db_id = db_user.id if db_user else 1 # Фоллбек на системного, если не зарегистрирован
+        
+        # Определяем тип объявления и категорию
+        l_type = data.get("listing_type", "rental")
+        cat_id = data.get("category_id", 1) # По умолчанию 1 (Аренда)
+        
         await create_listing(
             session=session,
-            user_id=1,  # Заглушка, нужно брать реального юзера
-            category_id=1, # Заглушка
+            user_id=user_db_id,
+            category_id=cat_id,
             city=data["city"],
             title=data["title"],
             description=data["description"],
-            deposit_terms=data["deposit_terms"],
+            deposit_terms=data.get("deposit_terms", "Не требуется"),
             delivery_terms=data["delivery_terms"],
             price_list=data["price_list"],
             contacts=data["contacts"],
-            photo_ids=photos
+            photo_ids=photos,
+            listing_type=l_type,
+            status="moderation"
         )
         
     await state.clear()

@@ -3,3 +3,6 @@ SQLAlchemy==2.0.28
 aiosqlite==0.20.0
 python-dotenv==1.0.1
 aiohttp-socks==0.8.4
+fastapi==0.109.2
+uvicorn==0.27.1
+Jinja2==3.1.3
