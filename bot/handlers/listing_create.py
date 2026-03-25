@@ -161,7 +161,8 @@ async def finish_photos(callback: types.CallbackQuery, state: FSMContext):
         l_type = data.get("listing_type", "rental")
         cat_id = data.get("category_id", 1) # По умолчанию 1 (Аренда)
         
-        await create_listing(
+        # Получаем созданное объявление (с ID)
+        new_listing = await create_listing(
             session=session,
             user_id=user_db_id,
             category_id=cat_id,
@@ -177,6 +178,40 @@ async def finish_photos(callback: types.CallbackQuery, state: FSMContext):
             status="moderation"
         )
         
+    # Уведомляем админов
+    from bot.handlers.admin import ADMIN_IDS
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    
+    admin_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="✅ Одобрить", callback_data=f"mod_approve_{new_listing.id}"),
+            InlineKeyboardButton(text="❌ Отклонить", callback_data=f"mod_reject_{new_listing.id}")
+        ]
+    ])
+    
+    admin_text = (
+        f"🆕 <b>Новое объявление на модерации!</b>\n\n"
+        f"👤 От: {callback.from_user.full_name} (@{callback.from_user.username})\n"
+        f"🏙 Город: {data['city']}\n"
+        f"🏷 Категория: {data['category']}\n"
+        f"📦 Название: {data['title']}\n"
+        f"📝 Описание: {data['description']}\n"
+        f"💰 Цены: {data['price_list']}"
+    )
+    
+    for admin_id in ADMIN_IDS:
+        try:
+            if photos:
+                await callback.bot.send_photo(
+                    admin_id, photos[0], caption=admin_text[:1024], reply_markup=admin_kb, parse_mode="HTML"
+                )
+            else:
+                await callback.bot.send_message(
+                    admin_id, admin_text, reply_markup=admin_kb, parse_mode="HTML"
+                )
+        except Exception as e:
+            logger.error(f"Failed to notify admin {admin_id}: {e}")
+
     await state.clear()
     await callback.message.answer(
         "✅ <b>Ваше объявление успешно создано и отправлено на модерацию!</b>\n\n"

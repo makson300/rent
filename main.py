@@ -6,7 +6,8 @@ from bot.config import BOT_TOKEN, PROXY_URL
 from bot.handlers import (
     start_router, profile_router, menu_router, 
     listing_create_router, catalog_router, admin_router, 
-    my_listings_router, education_router, sales_router
+    admin_moderation_router, my_listings_router, 
+    education_router, sales_router
 )
 from db.base import init_db
 

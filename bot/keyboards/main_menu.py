@@ -2,6 +2,8 @@ from aiogram.types import (
     ReplyKeyboardMarkup,
     KeyboardButton,
     ReplyKeyboardRemove,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
 )
 
 
@@ -47,7 +49,6 @@ def get_contact_keyboard() -> ReplyKeyboardMarkup:
 
 def get_user_type_keyboard() -> InlineKeyboardMarkup:
     """Выбор типа пользователя"""
-    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [

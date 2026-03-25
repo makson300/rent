@@ -70,6 +70,45 @@ async def get_user_listings(session: AsyncSession, user_id: int):
     return result.scalars().all()
 
 
+async def get_listings_by_filter(
+    session: AsyncSession, 
+    city: str | None = None, 
+    category: str | None = None, 
+    status: str = "active"
+):
+    """Поиск объявлений по фильтрам"""
+    query = select(Listing).options(selectinload(Listing.photos)).where(Listing.status == status)
+    
+    if city:
+        query = query.where(Listing.city == city)
+    if category:
+        # Assuming we search by category name or we need to join with Category model
+        # For simplicity now, let's assume category is a string name or we join
+        from db.models.category import Category
+        query = query.join(Category).where(Category.name == category)
+        
+    result = await session.execute(query.order_by(Listing.created_at.desc()))
+    return result.scalars().all()
+
+
+async def get_listing_by_id(session: AsyncSession, listing_id: int):
+    """Получить объявление по ID"""
+    result = await session.execute(
+        select(Listing).options(selectinload(Listing.photos)).where(Listing.id == listing_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def update_listing_status(session: AsyncSession, listing_id: int, status: str):
+    """Обновить статус объявления (moderation -> active/rejected)"""
+    listing = await get_listing_by_id(session, listing_id)
+    if listing:
+        listing.status = status
+        await session.commit()
+        await session.refresh(listing)
+    return listing
+
+
 async def delete_listing(session: AsyncSession, listing_id: int):
     """Удалить объявление"""
     from sqlalchemy import delete

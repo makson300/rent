@@ -20,12 +20,20 @@ async def show_profile(message: types.Message):
 
     phone_display = user.phone or "не указан"
     created = user.created_at.strftime("%d.%m.%Y") if user.created_at else "—"
+    u_type_display = "🏢 Компания / Прокат" if user.user_type == "company" else "👤 Частное лицо"
+
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📋 Мои объявления", callback_data="my_listings_list")],
+        [InlineKeyboardButton(text="🔙 В главное меню", callback_data="back_to_main")]
+    ])
 
     await message.answer(
         f"👤 <b>Ваш профиль</b>\n\n"
+        f"Статус: <b>{u_type_display}</b>\n"
         f"Имя: {user.first_name or '—'} {user.last_name or ''}\n"
         f"Телефон: {phone_display}\n"
         f"Дата регистрации: {created}\n",
         parse_mode="HTML",
-        reply_markup=get_main_menu(),
+        reply_markup=kb,
     )

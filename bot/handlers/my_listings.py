@@ -10,11 +10,18 @@ router = Router()
 logger = logging.getLogger(__name__)
 
 @router.message(F.text == "📋 Мои объявления")
-async def show_my_listings(message: types.Message):
+@router.callback_query(F.data == "my_listings_list")
+async def show_my_listings(event: types.Message | types.CallbackQuery):
+    user_id = event.from_user.id
+    message = event if isinstance(event, types.Message) else event.message
+
+    from db.crud.user import get_user
     async with async_session() as session:
-        # Get internal user ID (for now using stub 1 as in listing_create)
-        # TODO: Replace with real user lookup
-        listings = await get_user_listings(session, 1)
+        db_user = await get_user(session, user_id)
+        if not db_user:
+            await message.answer("⚠️ Сначала зарегистрируйтесь!")
+            return
+        listings = await get_user_listings(session, db_user.id)
         
     if not listings:
         await message.answer("📋 У вас пока нет созданных объявлений.")
