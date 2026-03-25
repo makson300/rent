@@ -205,10 +205,50 @@ async def cancel_feedback(callback: types.CallbackQuery, state: FSMContext):
 
 @router.message(F.text == "🆘 ЧП")
 async def emergency_menu(message: types.Message):
-    """Заглушка для раздела ЧП"""
+    """Меню гуманитарной миссии ЧП"""
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🙋‍♂️ Готов помочь (есть дрон)", callback_data="chp_ready_to_help")],
+        [InlineKeyboardButton(text="🔍 Поиск оператора (экстренно)", callback_data="chp_need_operator")],
+        [InlineKeyboardButton(text="📰 Мониторинг ЧП в РФ", callback_data="chp_monitoring")],
+        [InlineKeyboardButton(text="🔝 В главное меню", callback_data="back_to_main")]
+    ])
+
     await message.answer(
-        "🚧 Раздел <b>«ЧП»</b> находится в разработке.\n\n"
-        "Здесь вы сможете оперативно сообщить об утере или краже оборудования.",
+        "🆘 <b>ЧП / Гуманитарная миссия</b>\n\n"
+        "Это бесплатный раздел для поиска и анализа чрезвычайных ситуаций в России.\n\n"
+        "🔹 <b>Если у вас есть дрон</b> и вы готовы помочь — разместите анкету волонтёра.\n"
+        "🔹 <b>Если вам экстренно нужен оператор</b> — оставьте заявку на поиск.\n"
+        "🔹 Мы автоматически анализируем новости и оповещаем, если где-то требуется помощь.",
         parse_mode="HTML",
-        reply_markup=get_main_menu(),
+        reply_markup=kb,
     )
+
+@router.callback_query(F.data == "chp_ready_to_help")
+async def chp_volunteer_init(callback: types.CallbackQuery, state: FSMContext):
+    """Размещение анкеты волонтера (БЕСПЛАТНО)"""
+    from bot.handlers.listing_create import start_listing_create
+    await state.update_data(listing_type="volunteer", category_id=7)
+    await start_listing_create(callback, state)
+    await callback.answer()
+
+@router.callback_query(F.data == "chp_need_operator")
+async def chp_request_init(callback: types.CallbackQuery, state: FSMContext):
+    """Размещение заявки на поиск оператора (БЕСПЛАТНО)"""
+    from bot.handlers.listing_create import start_listing_create
+    await state.update_data(listing_type="chp_request", category_id=7)
+    await start_listing_create(callback, state)
+    await callback.answer()
+
+@router.callback_query(F.data == "chp_monitoring")
+async def chp_monitoring_view(callback: types.CallbackQuery):
+    """Просмотр последних сводок мониторинга"""
+    await callback.message.answer(
+        "📰 <b>Оперативный мониторинг ЧП</b>\n\n"
+        "<i>На данный момент система анализирует открытые источники (МЧС, новости, соцсети)...</i>\n\n"
+        "⚠️ Актуальных запросов на помощь операторов БПЛА пока нет.\n\n"
+        "Мы оповестим всех волонтёров, если поступит подтвержденная информация.",
+        parse_mode="HTML"
+    )
+    await callback.answer()

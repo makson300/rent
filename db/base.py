@@ -33,6 +33,7 @@ async def init_db():
                 Category(id=4, name="Техника для съемки", type="rent"),
                 Category(id=5, name="Другое", type="rent"),
                 Category(id=6, name="Операторы", type="operator"),
+                Category(id=7, name="ЧП / Гуманитарная миссия", type="emergency"),
             ]
             session.add_all(categories)
             
