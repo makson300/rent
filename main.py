@@ -77,10 +77,19 @@ async def main():
 
     logger.info("Bot starting polling...")
     try:
+        import os
         me = await bot.get_me()
         logger.info(f"Bot authorized as @{me.username} (ID: {me.id})")
         token_end = BOT_TOKEN[-4:] if BOT_TOKEN else "None"
-        print(f"DEBUG: Bot @{me.username} is starting. Token ending in: ...{token_end}")
+
+        print("-" * 50)
+        print(f"🚀 DEBUG INFO:")
+        print(f"🤖 Bot Username: @{me.username}")
+        print(f"🔑 Token Suffix: ...{token_end}")
+        print(f"📂 Working Dir:  {os.getcwd()}")
+        print(f"📁 Entry Point:  {os.path.abspath(__file__)}")
+        print("-" * 50)
+
         await dp.start_polling(bot)
     except Exception as e:
         logger.error(f"Runtime error: {e}")
