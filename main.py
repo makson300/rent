@@ -58,7 +58,8 @@ async def main():
     dp.include_router(admin_router) # Админский роутер первым!
     dp.include_router(start_router)
     dp.include_router(profile_router)
-    dp.include_router(menu_router)
+
+    # Сначала специфичные роутеры
     dp.include_router(listing_create_router)
     dp.include_router(catalog_router)
     dp.include_router(my_listings_router)
@@ -68,6 +69,9 @@ async def main():
     dp.include_router(emergency_router)
     dp.include_router(search_router)
     dp.include_router(reviews_router)
+
+    # В конце - общее меню и заглушки
+    dp.include_router(menu_router)
 
 
     logger.info("Bot starting polling...")

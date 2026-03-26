@@ -141,11 +141,23 @@ async def cancel_feedback(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.edit_text("❌ Отправка обратной связи отменена.")
     await callback.answer()
 
-@router.message(F.text.in_({"🆘 ЧП", "🎧 Поддержка"}))
+@router.message(F.text == "🎧 Поддержка")
 async def stub_menu(message: types.Message):
     """Заглушки для старых или тестовых кнопок"""
     await message.answer(
-        f"🚧 Раздел <b>«{message.text.strip('🎓🆘📜🎧 ')}»</b> находится в разработке.",
+        f"🚧 Раздел <b>«Поддержка»</b> находится в разработке.",
         parse_mode="HTML",
         reply_markup=get_main_menu(),
     )
+
+@router.message(F.text == "📜 Правила и условия")
+async def rules_menu(message: types.Message):
+    """Раздел правил"""
+    text = (
+        "📜 <b>Правила и условия пользования</b>\n\n"
+        "1. Платформа является доской объявлений и не несет ответственности за сделки.\n"
+        "2. Запрещено размещение объявлений, нарушающих законодательство РФ.\n"
+        "3. Внимательно проверяйте оборудование при получении.\n"
+        "4. Для верификации и решения споров обращайтесь в «Обратную связь»."
+    )
+    await message.answer(text, parse_mode="HTML", reply_markup=get_main_menu())
