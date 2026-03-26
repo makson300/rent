@@ -8,10 +8,17 @@ from bot.handlers.admin_moderation import router as admin_moderation_router
 from bot.handlers.my_listings import router as my_listings_router
 from bot.handlers.education import router as education_router
 from bot.handlers.sales import router as sales_router
+from bot.handlers.operators import router as operators_router
+from bot.handlers.emergency import router as emergency_router
+from bot.handlers.search import router as search_router
+from bot.handlers.reviews import router as reviews_router
+from bot.handlers.wishlist import router as wishlist_router
 
 __all__ = [
     "start_router", "profile_router", "menu_router", 
     "listing_create_router", "catalog_router", "admin_router", 
     "admin_moderation_router", "my_listings_router", 
-    "education_router", "sales_router"
+    "education_router", "sales_router", "operators_router",
+    "emergency_router", "search_router", "reviews_router",
+    "wishlist_router"
 ]

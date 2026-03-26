@@ -1,6 +1,6 @@
 import logging
 from aiogram import Router, types, F
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 from db.base import async_session
 from db.crud.user import get_user, create_user, update_user_phone
@@ -10,6 +10,14 @@ from bot.states import RegistrationStates
 router = Router()
 logger = logging.getLogger(__name__)
 
+
+@router.message(F.text == "/version")
+async def cmd_version(message: types.Message):
+    await message.answer("🚀 <b>Sky Rent Hub v1.0.4 (Final Launch Ready)</b>\nBuild date: 2024-03-26", parse_mode="HTML")
+
+@router.message(Command("id"))
+async def cmd_id(message: types.Message):
+    await message.answer(f"🆔 Ваш Telegram ID: <code>{message.from_user.id}</code>\n👤 Ваш Username: @{message.from_user.username}", parse_mode="HTML")
 
 @router.message(CommandStart())
 async def cmd_start(message: types.Message, state: FSMContext):
@@ -48,13 +56,15 @@ async def cmd_start(message: types.Message, state: FSMContext):
         )
 
     await message.answer(
-        f"👋 Добро пожаловать в маркетплейс аренды оборудования!\n\n"
+        f"👋 Добро пожаловать в маркетплейс аренды оборудования!\n"
+        f"<i>(Версия: v1.0.4 - Launch Ready)</i>\n\n"
         "Здесь вы можете:\n"
         "🏠 Сдать или арендовать технику\n"
         "🎓 Найти курсы и обучающие материалы\n"
         "🆘 Разместить объявление о ЧП\n\n"
         "📱 Для начала, пожалуйста, поделитесь своим контактом:",
         reply_markup=get_contact_keyboard(),
+        parse_mode="HTML"
     )
     await state.set_state(RegistrationStates.waiting_for_contact)
 

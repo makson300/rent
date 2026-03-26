@@ -3,18 +3,21 @@ import logging
 import os
 import sys
 from pathlib import Path
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends, HTTPException, status
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sqlalchemy import select, func
 
 # Add project root to path to import db and bot
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from bot.config import DASHBOARD_PASSWORD
 from db.base import async_session, init_db
 from db.models.user import User
 from db.models.listing import Listing
 from db.models.education import EducationApplication
+from bot.services.ai_growth_advisor import get_growth_insights
 
 # Configure logging
 logging.basicConfig(
@@ -24,6 +27,16 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="RentBot Admin Dashboard")
+security = HTTPBasic()
+
+def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
+    if credentials.username != "admin" or credentials.password != DASHBOARD_PASSWORD:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
 
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent
@@ -47,7 +60,8 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
 
 @app.get("/")
-async def home(request: Request):
+@app.head("/")
+async def home(request: Request, _ = Depends(authenticate)):
     try:
         async with async_session() as session:
             users_count = await session.scalar(select(func.count()).select_from(User))
@@ -78,7 +92,7 @@ async def home(request: Request):
         raise e
 
 @app.get("/listings")
-async def listings_page(request: Request):
+async def listings_page(request: Request, _ = Depends(authenticate)):
     """Страница со всеми объявлениями"""
     try:
         async with async_session() as session:
@@ -97,7 +111,7 @@ async def listings_page(request: Request):
         raise e
 
 @app.post("/listings/{listing_id}/approve")
-async def approve_listing_web(listing_id: int):
+async def approve_listing_web(listing_id: int, _ = Depends(authenticate)):
     """Одобрение объявления через веб"""
     try:
         async with async_session() as session:
@@ -112,7 +126,7 @@ async def approve_listing_web(listing_id: int):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @app.post("/listings/{listing_id}/reject")
-async def reject_listing_web(listing_id: int):
+async def reject_listing_web(listing_id: int, _ = Depends(authenticate)):
     """Отклонение объявления через веб"""
     try:
         async with async_session() as session:
@@ -127,7 +141,7 @@ async def reject_listing_web(listing_id: int):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @app.get("/feedback")
-async def feedback_page(request: Request):
+async def feedback_page(request: Request, _ = Depends(authenticate)):
     """Страница с обратной связью"""
     try:
         async with async_session() as session:
@@ -146,7 +160,7 @@ async def feedback_page(request: Request):
         raise e
 
 @app.post("/feedback/{feedback_id}/process")
-async def process_feedback_web(feedback_id: int):
+async def process_feedback_web(feedback_id: int, _ = Depends(authenticate)):
     """Отметка обратной связи как обработанной"""
     try:
         async with async_session() as session:
@@ -162,7 +176,7 @@ async def process_feedback_web(feedback_id: int):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 @app.get("/applications")
-async def applications(request: Request):
+async def applications(request: Request, _ = Depends(authenticate)):
     try:
         async with async_session() as session:
             result = await session.execute(
@@ -175,6 +189,19 @@ async def applications(request: Request):
         )
     except Exception as e:
         logger.error(f"Error rendering applications: {e}", exc_info=True)
+        raise e
+
+@app.get("/ai-insights")
+@app.head("/ai-insights")
+async def ai_insights_page(request: Request, _ = Depends(authenticate)):
+    """Страница с ИИ-рекомендациями по росту"""
+    try:
+        recommendations = await get_growth_insights()
+        return templates.TemplateResponse(
+            request=request, name="ai_advisor.html", context={"recommendations": recommendations}
+        )
+    except Exception as e:
+        logger.error(f"Error rendering AI insights: {e}", exc_info=True)
         raise e
 
 if __name__ == "__main__":

@@ -15,15 +15,20 @@ logger = logging.getLogger(__name__)
 
 # Список ID администраторов (из конфига и жестко заданные)
 ADMIN_IDS = [150190533, 506450098] 
+ADMIN_USERNAMES = ["@vmandco", "vmandco"]
 
-def is_admin(user_id: int) -> bool:
+def is_admin(user_id: int, username: str | None = None) -> bool:
     from bot.config import ADMIN_IDS as CONFIG_ADMIN_IDS
-    return user_id in ADMIN_IDS or user_id in CONFIG_ADMIN_IDS
+    if user_id in ADMIN_IDS or user_id in CONFIG_ADMIN_IDS:
+        return True
+    if username and username.lower() in [u.lower().strip("@") for u in ADMIN_USERNAMES]:
+        return True
+    return False
 
 @router.message(Command("me"))
 async def cmd_me(message: types.Message):
     """Диагностика ID и прав"""
-    status = "✅ АДМИН" if is_admin(message.from_user.id) else "❌ Покупатель"
+    status = "✅ АДМИН" if is_admin(message.from_user.id, message.from_user.username) else "❌ Покупатель"
     await message.answer(f"🆔 Ваш ID: <code>{message.from_user.id}</code>\n🔑 Статус: {status}", parse_mode="HTML")
 
 
@@ -31,8 +36,20 @@ async def cmd_me(message: types.Message):
 @router.message(Command("admin"))
 async def admin_main(message: types.Message):
     """Главный вход в админку"""
-    if not is_admin(message.from_user.id):
-        await message.answer("⛔️ У вас нет прав доступа к этой команде.")
+    user_id = message.from_user.id
+    username = message.from_user.username
+
+    if not is_admin(user_id, username):
+        admin_list_debug = f"DEBUG: ADMIN_USERNAMES={ADMIN_USERNAMES}"
+        await message.answer(
+            f"⛔️ <b>ОТКАЗ В ДОСТУПЕ (v1.0.4)</b>\n\n"
+            f"<b>Ваши данные:</b>\n"
+            f"🆔 ID: <code>{user_id}</code>\n"
+            f"👤 Username: @{username if username else 'не установлен'}\n\n"
+            f"<i>{admin_list_debug}</i>\n\n"
+            f"Пожалуйста, ПЕРЕЗАПУСТИТЕ своего локального бота. Если вы видите это сообщение, значит вы всё еще на старой версии или бот не видит ваши права.",
+            parse_mode="HTML"
+        )
         return
 
     
@@ -151,13 +168,42 @@ async def admin_edu_done(callback: types.CallbackQuery):
 
 @router.callback_query(F.data.startswith("admin_approve_"))
 async def approve_listing(callback: types.CallbackQuery):
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
     listing_id = int(callback.data.split("_")[2])
     async with async_session() as session:
-        await session.execute(
-            update(Listing).where(Listing.id == listing_id).values(status="active")
+        result = await session.execute(
+            select(Listing).options(selectinload(Listing.user)).where(Listing.id == listing_id)
         )
-        await session.commit()
-    
+        listing = result.scalar_one_or_none()
+        if listing:
+            listing.status = "active"
+            await session.commit()
+
+            # Проверка подписок на поиск (Wishlist)
+            from db.models.subscription import SearchSubscription
+            subs_result = await session.execute(
+                select(SearchSubscription).options(selectinload(SearchSubscription.user))
+                .where(SearchSubscription.is_active == True)
+            )
+            subs = subs_result.scalars().all()
+
+            for s in subs:
+                if s.query.lower() in listing.title.lower() or s.query.lower() in listing.description.lower():
+                    # Уведомляем пользователя
+                    try:
+                        text = (
+                            f"🔔 <b>Поступление по вашей подписке!</b>\n\n"
+                            f"Найдено совпадение для запроса «{s.query}»:\n"
+                            f"📦 <b>{listing.title}</b>\n"
+                            f"🏙 Город: {listing.city}\n"
+                            f"💰 Цена: {listing.price_list}\n\n"
+                            f"Проверьте раздел «Аренда», чтобы связаться с владельцем."
+                        )
+                        await callback.bot.send_message(s.user.telegram_id, text, parse_mode="HTML")
+                    except Exception as e:
+                        logger.error(f"Failed to notify user {s.user.telegram_id}: {e}")
+
     current_caption = callback.message.caption or ""
     await callback.message.edit_caption(caption=current_caption[:1000] + "\n\n✅ <b>ОДОБРЕНО</b>", parse_mode="HTML")
     await callback.answer("Объявление одобрено!")
@@ -178,7 +224,7 @@ async def reject_listing(callback: types.CallbackQuery):
 @router.message(F.forward_from_chat | F.forward_from | F.forward_origin)
 async def process_forwarded_post(message: types.Message):
     """Обработка пересланного сообщения из канала партнера"""
-    if not is_admin(message.from_user.id):
+    if not is_admin(message.from_user.id, message.from_user.username):
         return
         
     logger.info(f"Admin {message.from_user.id} forwarded a post")
@@ -206,7 +252,12 @@ async def admin_cancel(callback: types.CallbackQuery):
     await callback.message.delete()
     await callback.answer("Действие отменено")
 
-    listing_text = callback.message.reply_to_message.text or callback.message.reply_to_message.caption or ""
+    orig_msg = callback.message.reply_to_message
+    if not orig_msg:
+        await callback.answer("Ошибка: исходное сообщение не найдено.")
+        return
+
+    listing_text = orig_msg.text or orig_msg.caption or ""
     if not listing_text:
         await callback.answer("Ошибка: текст не найден.", show_alert=True)
         return

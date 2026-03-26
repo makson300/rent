@@ -30,10 +30,18 @@ class Listing(Base):
     
     # status: moderation / active / rejected / expired
     status: Mapped[str] = mapped_column(String(20), default="moderation")
+
+    # VIP status
+    is_vip: Mapped[bool] = mapped_column(Boolean, default=False)
+    vip_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     photos: Mapped[list["ListingPhoto"]] = relationship(
         "ListingPhoto", back_populates="listing", cascade="all, delete-orphan"
+    )
+    reviews: Mapped[list["Review"]] = relationship(
+        "Review", back_populates="listing", cascade="all, delete-orphan"
     )
 
 
