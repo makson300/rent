@@ -36,8 +36,20 @@ async def cmd_me(message: types.Message):
 @router.message(Command("admin"))
 async def admin_main(message: types.Message):
     """Главный вход в админку"""
-    if not is_admin(message.from_user.id, message.from_user.username):
-        await message.answer("⛔️ У вас нет прав доступа к этой команде.")
+    user_id = message.from_user.id
+    username = message.from_user.username
+
+    if not is_admin(user_id, username):
+        admin_list_debug = f"DEBUG: ADMIN_USERNAMES={ADMIN_USERNAMES}"
+        await message.answer(
+            f"⛔️ <b>ОТКАЗ В ДОСТУПЕ (v1.0.4)</b>\n\n"
+            f"<b>Ваши данные:</b>\n"
+            f"🆔 ID: <code>{user_id}</code>\n"
+            f"👤 Username: @{username if username else 'не установлен'}\n\n"
+            f"<i>{admin_list_debug}</i>\n\n"
+            f"Пожалуйста, ПЕРЕЗАПУСТИТЕ своего локального бота. Если вы видите это сообщение, значит вы всё еще на старой версии или бот не видит ваши права.",
+            parse_mode="HTML"
+        )
         return
 
     
