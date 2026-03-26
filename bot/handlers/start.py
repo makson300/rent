@@ -11,6 +11,10 @@ router = Router()
 logger = logging.getLogger(__name__)
 
 
+@router.message(F.text == "/version")
+async def cmd_version(message: types.Message):
+    await message.answer("🚀 <b>Sky Rent Hub v1.0.4 (Final Launch Ready)</b>\nBuild date: 2024-03-26", parse_mode="HTML")
+
 @router.message(CommandStart())
 async def cmd_start(message: types.Message, state: FSMContext):
     """Обработка /start — приветствие + проверка регистрации"""

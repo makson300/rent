@@ -23,7 +23,7 @@ async def show_city_categories(callback: types.CallbackQuery):
     kb.inline_keyboard.append([InlineKeyboardButton(text="🔙 Назад к городам", callback_data="back_to_cities")])
     
     await callback.message.edit_text(
-        f"🏙 <b>Город: {city}</b>\n\nВыберите категорию оборудования:",
+        f"🏙 <b>Город: {city_name}</b>\n\nВыберите категорию оборудования:",
         parse_mode="HTML",
         reply_markup=kb
     )
@@ -72,7 +72,7 @@ async def show_category_listings(callback: types.CallbackQuery):
         return
         
     await callback.message.answer(
-        f"🔍 <b>{city} | {category}</b>\nНайдено объявлений: {len(listings)}",
+        f"🔍 <b>{city_name} | {cat_name}</b>\nНайдено объявлений: {len(listings)}",
         parse_mode="HTML"
     )
     

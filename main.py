@@ -56,6 +56,7 @@ async def main():
     # Подключение роутеров
     logger.info("Registering routers...")
     dp.include_router(admin_router) # Админский роутер первым!
+    dp.include_router(admin_moderation_router)
     dp.include_router(start_router)
     dp.include_router(profile_router)
 
