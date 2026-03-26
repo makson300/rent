@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import BigInteger, String, Boolean, DateTime
+from sqlalchemy import BigInteger, String, Boolean, DateTime, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from db.base import Base
 from typing import TYPE_CHECKING
@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from db.models.listing import Listing
     from db.models.feedback import Feedback
     from db.models.review import Review
+    from db.models.subscription import SearchSubscription
 
 
 class User(Base):
@@ -20,6 +21,12 @@ class User(Base):
     last_name: Mapped[str | None] = mapped_column(String(150), nullable=True)
     username: Mapped[str | None] = mapped_column(String(100), nullable=True)
     user_type: Mapped[str] = mapped_column(String(20), default="private") # private / company
+
+    # Данные для генерации договоров (заполняются в профиле)
+    full_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    passport_data: Mapped[str | None] = mapped_column(Text, nullable=True) # Маскированные данные
+    address: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # Связи
@@ -28,4 +35,5 @@ class User(Base):
     reviews_received: Mapped[list["Review"]] = relationship(
         "Review", foreign_keys="Review.to_user_id", back_populates="subject"
     )
+    subscriptions: Mapped[list["SearchSubscription"]] = relationship("SearchSubscription", back_populates="user")
 

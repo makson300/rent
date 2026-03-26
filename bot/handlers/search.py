@@ -13,12 +13,18 @@ logger = logging.getLogger(__name__)
 @router.message(Command("search"))
 async def cmd_search(message: types.Message):
     """Инструкция по поиску"""
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔔 Лист ожидания (Wishlist)", callback_data="search_wishlist")]
+    ])
     await message.answer(
         "🔍 <b>Умный поиск</b>\n\n"
         "Чтобы найти оборудование, введите запрос после команды. Например:\n"
         "<code>/search dji mavic</code>\n"
-        "<code>/search софтбокс москва</code>",
-        parse_mode="HTML"
+        "<code>/search софтбокс москва</code>\n\n"
+        "<i>Если ничего не нашлось, вы можете подписаться на поиск в листе ожидания!</i>",
+        parse_mode="HTML",
+        reply_markup=kb
     )
 
 @router.message(F.text.startswith("/search "))

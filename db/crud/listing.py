@@ -87,8 +87,24 @@ async def get_listings_by_filter(
         from db.models.category import Category
         query = query.join(Category).where(Category.name == category)
         
-    result = await session.execute(query.order_by(Listing.created_at.desc()))
+    # Prioritize VIP listings, then by creation date
+    from sqlalchemy import desc
+    result = await session.execute(
+        query.order_by(desc(Listing.is_vip), desc(Listing.created_at))
+    )
     return result.scalars().all()
+
+
+async def set_listing_vip(session: AsyncSession, listing_id: int, days: int = 30):
+    """Сделать объявление VIP на указанное количество дней"""
+    from datetime import timedelta
+    listing = await get_listing_by_id(session, listing_id)
+    if listing:
+        listing.is_vip = True
+        listing.vip_expires_at = datetime.utcnow() + timedelta(days=days)
+        await session.commit()
+        await session.refresh(listing)
+    return listing
 
 
 async def get_listing_by_id(session: AsyncSession, listing_id: int):

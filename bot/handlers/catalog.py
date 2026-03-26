@@ -44,6 +44,48 @@ async def back_to_cities(callback: types.CallbackQuery):
     await callback.answer()
 
 
+import os
+
+@router.callback_query(F.data.startswith("gen_contract_"))
+async def gen_contract(callback: types.CallbackQuery):
+    listing_id = int(callback.data.split("_")[2])
+
+    async with async_session() as session:
+        from sqlalchemy.orm import selectinload
+        from sqlalchemy import select
+        from db.models.user import User
+        from db.models.listing import Listing
+
+        result = await session.execute(
+            select(Listing).options(selectinload(Listing.user)).where(Listing.id == listing_id)
+        )
+        listing = result.scalar_one_or_none()
+
+        if not listing:
+            await callback.answer("Ошибка: объявление не найдено.")
+            return
+
+        db_user_res = await session.execute(select(User).where(User.telegram_id == callback.from_user.id))
+        tenant = db_user_res.scalar_one_or_none()
+        if not tenant:
+             await callback.answer("Зарегистрируйтесь в профиле!")
+             return
+
+    from bot.services.pdf_service import generate_rental_contract
+    from aiogram.types import FSInputFile
+
+    file_path = f"contract_{listing_id}_{callback.from_user.id}.pdf"
+    generate_rental_contract(listing, listing.user, tenant, file_path)
+
+    await callback.message.answer_document(
+        FSInputFile(file_path),
+        caption="📜 <b>Ваш договор аренды готов!</b>\n\nЭтот файл содержит данные об оборудовании и сторонах. Пожалуйста, распечатайте и подпишите его при встрече.",
+        parse_mode="HTML"
+    )
+    if os.path.exists(file_path):
+        os.remove(file_path)
+    await callback.answer()
+
 @router.callback_query(F.data.startswith("view_cat:"))
 async def show_category_listings(callback: types.CallbackQuery):
     """Показ объявлений для выбранного города и категории"""
@@ -86,10 +128,14 @@ async def show_category_listings(callback: types.CallbackQuery):
             f"📞 <b>Контакты:</b> {listing.contacts}"
         )
         
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📜 Сгенерировать договор (PDF)", callback_data=f"gen_contract_{listing.id}")]
+        ])
+
         if listing.photos:
             photo_id = listing.photos[0].photo_id
-            await callback.message.answer_photo(photo_id, caption=text[:1024], parse_mode="HTML")
+            await callback.message.answer_photo(photo_id, caption=text[:1024], reply_markup=kb, parse_mode="HTML")
         else:
-            await callback.message.answer(text, parse_mode="HTML")
+            await callback.message.answer(text, reply_markup=kb, parse_mode="HTML")
             
     await callback.answer()

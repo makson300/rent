@@ -1,6 +1,6 @@
 import logging
 from aiogram import Router, types, F
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, Command
 from aiogram.fsm.context import FSMContext
 from db.base import async_session
 from db.crud.user import get_user, create_user, update_user_phone

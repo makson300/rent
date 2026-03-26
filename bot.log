@@ -1,9 +1,0 @@
-Traceback (most recent call last):
-  File "/app/main.py", line 6, in <module>
-    from bot.handlers import (
-  File "/app/bot/handlers/__init__.py", line 1, in <module>
-    from bot.handlers.start import router as start_router
-  File "/app/bot/handlers/start.py", line 18, in <module>
-    @router.message(Command("id"))
-                    ^^^^^^^
-NameError: name 'Command' is not defined

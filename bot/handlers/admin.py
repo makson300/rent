@@ -168,13 +168,42 @@ async def admin_edu_done(callback: types.CallbackQuery):
 
 @router.callback_query(F.data.startswith("admin_approve_"))
 async def approve_listing(callback: types.CallbackQuery):
+    from sqlalchemy import select
+    from sqlalchemy.orm import selectinload
     listing_id = int(callback.data.split("_")[2])
     async with async_session() as session:
-        await session.execute(
-            update(Listing).where(Listing.id == listing_id).values(status="active")
+        result = await session.execute(
+            select(Listing).options(selectinload(Listing.user)).where(Listing.id == listing_id)
         )
-        await session.commit()
-    
+        listing = result.scalar_one_or_none()
+        if listing:
+            listing.status = "active"
+            await session.commit()
+
+            # Проверка подписок на поиск (Wishlist)
+            from db.models.subscription import SearchSubscription
+            subs_result = await session.execute(
+                select(SearchSubscription).options(selectinload(SearchSubscription.user))
+                .where(SearchSubscription.is_active == True)
+            )
+            subs = subs_result.scalars().all()
+
+            for s in subs:
+                if s.query.lower() in listing.title.lower() or s.query.lower() in listing.description.lower():
+                    # Уведомляем пользователя
+                    try:
+                        text = (
+                            f"🔔 <b>Поступление по вашей подписке!</b>\n\n"
+                            f"Найдено совпадение для запроса «{s.query}»:\n"
+                            f"📦 <b>{listing.title}</b>\n"
+                            f"🏙 Город: {listing.city}\n"
+                            f"💰 Цена: {listing.price_list}\n\n"
+                            f"Проверьте раздел «Аренда», чтобы связаться с владельцем."
+                        )
+                        await callback.bot.send_message(s.user.telegram_id, text, parse_mode="HTML")
+                    except Exception as e:
+                        logger.error(f"Failed to notify user {s.user.telegram_id}: {e}")
+
     current_caption = callback.message.caption or ""
     await callback.message.edit_caption(caption=current_caption[:1000] + "\n\n✅ <b>ОДОБРЕНО</b>", parse_mode="HTML")
     await callback.answer("Объявление одобрено!")

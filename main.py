@@ -8,7 +8,8 @@ from bot.handlers import (
     listing_create_router, catalog_router, admin_router, 
     admin_moderation_router, my_listings_router, 
     education_router, sales_router, operators_router,
-    emergency_router, search_router, reviews_router
+    emergency_router, search_router, reviews_router,
+    wishlist_router
 )
 from bot.commands import set_bot_commands
 from bot.middlewares.throttling import ThrottlingMiddleware
@@ -69,6 +70,7 @@ async def main():
     dp.include_router(operators_router)
     dp.include_router(emergency_router)
     dp.include_router(search_router)
+    dp.include_router(wishlist_router)
     dp.include_router(reviews_router)
 
     # В конце - общее меню и заглушки
