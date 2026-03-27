@@ -4,6 +4,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from db.base import async_session
 from sqlalchemy import select, or_
+from sqlalchemy.orm import selectinload
 from db.models.listing import Listing
 from bot.keyboards.catalog import get_listing_detail_kb
 
@@ -28,14 +29,25 @@ async def process_search(message: types.Message, state: FSMContext):
 
     async with async_session() as session:
         # Поиск по заголовку, описанию и городу
-        stmt = select(Listing).where(
-            Listing.is_approved == True,
-            or_(
-                Listing.title.icontains(query),
-                Listing.description.icontains(query),
-                Listing.city.icontains(query)
+        stmt = (
+            select(Listing)
+            .options(selectinload(Listing.photos))
+            .where(
+                or_(
+                    Listing.is_approved == True,
+                    Listing.status == "active"
+                )
             )
-        ).limit(10)
+            .where(
+                or_(
+                    Listing.title.icontains(query),
+                    Listing.description.icontains(query),
+                    Listing.city.icontains(query)
+                )
+            )
+            .order_by(Listing.created_at.desc())
+            .limit(10)
+        )
         
         result = await session.execute(stmt)
         listings = result.scalars().all()
@@ -44,13 +56,15 @@ async def process_search(message: types.Message, state: FSMContext):
         await message.answer(f"🤷‍♂️ По запросу «{query}» ничего не найдено.")
     else:
         await message.answer(f"✅ Найдено {len(listings)} объявлений:")
-        for item in listings:
-            from bot.handlers.catalog import show_listing_card
-            # Вызываем показ карточки (упрощенно)
+        for l in listings[:5]:
+            text = f"📦 <b>{l.title}</b>\n🏙 {l.city}\n💰 {l.price_list[:50] if l.price_list else 'Нет'}..."
             await message.answer(
-                f"📌 <b>{item.title}</b>\n💰 {item.price}₽\n📍 {item.city}",
+                text,
                 parse_mode="HTML",
-                reply_markup=get_listing_detail_kb(item.id)
+                reply_markup=get_listing_detail_kb(l.id)
             )
+
+        if len(listings) > 5:
+            await message.answer(f"<i>...и еще {len(listings) - 5} объявлений.</i>", parse_mode="HTML")
     
     await state.clear()

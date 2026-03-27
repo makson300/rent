@@ -35,6 +35,12 @@ class Listing(Base):
     photos: Mapped[list["ListingPhoto"]] = relationship(
         "ListingPhoto", back_populates="listing", cascade="all, delete-orphan"
     )
+    reviews: Mapped[list["Review"]] = relationship(
+        "Review", back_populates="listing", cascade="all, delete-orphan"
+    )
+
+    # Occupancy calendar (list of booked dates in format 'YYYY-MM-DD,YYYY-MM-DD')
+    booked_dates: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class ListingPhoto(Base):

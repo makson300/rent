@@ -7,17 +7,18 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemo
 router = Router()
 logger = logging.getLogger(__name__)
 
-# Заглушка городов и категорий
-CITIES = ["Москва", "Санкт-Петербург", "Казань", "Екатеринбург", "Новосибирск"]
-CATEGORIES = ["Камеры и оптика", "Квадрокоптеры", "Кемпинг", "Спорт", "Инструменты"]
+from bot.constants import CITIES, CATEGORIES
 
+
+from bot.constants import CITY_MAP, CATEGORY_MAP
 
 def get_cities_kb():
-    kb = [[KeyboardButton(text=city)] for city in CITIES]
+    kb = [[KeyboardButton(text=city_name)] for city_name in CITY_MAP.values()]
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
 
 def get_categories_kb():
-    kb = [[KeyboardButton(text=cat)] for cat in CATEGORIES]
+    # Only show main rental categories here (0, 1, 2)
+    kb = [[KeyboardButton(text=CATEGORY_MAP[i])] for i in range(3)]
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
 
 
@@ -80,7 +81,11 @@ async def process_category(message: types.Message, state: FSMContext):
 @router.message(ListingCreateStates.waiting_for_title, F.text)
 async def process_title(message: types.Message, state: FSMContext):
     await state.update_data(title=message.text)
-    await message.answer("📝 <b>Шаг 4/9</b>\nВведите подробное описание:")
+    await message.answer(
+        "📝 <b>Шаг 4/9</b>\nВведите подробное описание оборудования:\n\n"
+        "<i>Совет: Укажите комплектацию и особенности, чтобы привлечь больше клиентов.</i>",
+        parse_mode="HTML"
+    )
     await state.set_state(ListingCreateStates.waiting_for_description)
 
 
@@ -111,7 +116,25 @@ async def process_delivery(message: types.Message, state: FSMContext):
 @router.message(ListingCreateStates.waiting_for_price, F.text)
 async def process_price(message: types.Message, state: FSMContext):
     await state.update_data(price_list=message.text)
-    await message.answer("📝 <b>Шаг 8/9</b>\nУкажите контактные данные (номер телефона, ссылки):")
+
+    from db.base import async_session
+    from db.crud.user import get_user
+    async with async_session() as session:
+        user = await get_user(session, message.from_user.id)
+
+    contact_text = user.phone if user and user.phone else ""
+    kb = ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text=contact_text)]] if contact_text else [],
+        resize_keyboard=True,
+        one_time_keyboard=True
+    )
+
+    await message.answer(
+        "📝 <b>Шаг 8/9</b>\nУкажите контактные данные для связи.\n\n"
+        "<i>Вы можете использовать номер телефона из вашего профиля (кнопка ниже) или ввести другой контакт (например, ссылку на Telegram).</i>",
+        reply_markup=kb,
+        parse_mode="HTML"
+    )
     await state.set_state(ListingCreateStates.waiting_for_contacts)
 
 
@@ -158,6 +181,37 @@ async def finish_photos(callback: types.CallbackQuery, state: FSMContext):
         await callback.answer("Нужно отправить хотя бы одно фото!", show_alert=True)
         return
         
+    # Показываем предпросмотр
+    preview_text = (
+        "👀 <b>Предпросмотр вашего объявления:</b>\n\n"
+        f"🏙 <b>Город:</b> {data['city']}\n"
+        f"🏷 <b>Категория:</b> {data['category']}\n"
+        f"📦 <b>Название:</b> {data['title']}\n"
+        f"📝 <b>Описание:</b> {data['description']}\n"
+        f"💰 <b>Цены:</b> {data['price_list']}\n"
+        f"🛡 <b>Залог:</b> {data.get('deposit_terms', 'Не требуется')}\n"
+        f"🚚 <b>Доставка:</b> {data['delivery_terms']}\n"
+        f"📞 <b>Контакты:</b> {data['contacts']}\n\n"
+        "<i>Проверьте данные. Если всё верно, нажмите «Опубликовать».</i>"
+    )
+
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ Опубликовать", callback_data="confirm_listing_publish")],
+        [InlineKeyboardButton(text="❌ Начать заново", callback_data="start_listing_create")]
+    ])
+
+    if photos:
+        await callback.message.answer_photo(photos[0], caption=preview_text[:1024], reply_markup=kb, parse_mode="HTML")
+    else:
+        await callback.message.answer(preview_text, reply_markup=kb, parse_mode="HTML")
+
+    await callback.answer()
+
+@router.callback_query(F.data == "confirm_listing_publish")
+async def confirm_listing_publish(callback: types.CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    photos = data.get("photos", [])
+
     # Сохраняем в БД
     from db.base import async_session
     from db.crud.listing import create_listing
@@ -171,7 +225,10 @@ async def finish_photos(callback: types.CallbackQuery, state: FSMContext):
         
         # Определяем тип объявления и категорию
         l_type = data.get("listing_type", "rental")
-        cat_id = data.get("category_id", 1) # По умолчанию 1 (Аренда)
+        # Map category name to DB id
+        cat_name = data.get("category", "Дроны")
+        cat_map = {"Дроны": 1, "Техника для съемки": 4, "Другое": 5, "Операторы": 6}
+        cat_id = data.get("category_id") or cat_map.get(cat_name, 1)
         
         # Получаем созданное объявление (с ID)
         new_listing = await create_listing(

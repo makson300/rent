@@ -8,7 +8,7 @@ from bot.handlers import (
     listing_create_router, catalog_router, admin_router, 
     admin_moderation_router, my_listings_router, 
     education_router, sales_router, packages_router,
-    search_router, seller_profile_router
+    search_router, seller_profile_router, operators_router
 )
 from db.base import init_db
 
@@ -54,7 +54,12 @@ async def main():
     dp.include_router(my_listings_router)
     dp.include_router(education_router)
     dp.include_router(sales_router)
+    dp.include_router(operators_router)
+    dp.include_router(search_router)
 
+    # Установка команд меню
+    from bot.commands import set_commands
+    await set_commands(bot)
 
     logger.info("Bot starting polling...")
     try:

@@ -31,6 +31,7 @@ def get_main_menu() -> ReplyKeyboardMarkup:
                 KeyboardButton(text="🆘 ЧП"),
             ],
             [
+                KeyboardButton(text="🎬 Операторы"),
                 KeyboardButton(text="📩 Обратная связь"),
             ],
 
