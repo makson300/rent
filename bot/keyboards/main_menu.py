@@ -12,6 +12,9 @@ def get_main_menu() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
             [
+                KeyboardButton(text="🔍 Поиск"),
+            ],
+            [
                 KeyboardButton(text="🔍 Арендовать"),
                 KeyboardButton(text="🏷 Сдать оборудование"),
             ],

@@ -20,6 +20,7 @@ async def init_db():
     # Сидинг начальных данных
     from db.models.category import Category
     from db.models.user import User
+    from db.models.review import Review
     from sqlalchemy import select
     
     async with async_session() as session:

@@ -29,19 +29,31 @@ async def start_listing_create(callback: types.CallbackQuery, state: FSMContext)
     
     async with async_session() as session:
         user = await get_user(session, callback.from_user.id)
-        
-    if not user or not user.phone:
-        await callback.message.answer("⚠️ Сначала необходимо зарегистрироваться! Используйте /start.")
-        await callback.answer()
-        return
+        if not user:
+            await callback.message.answer("⚠️ Вы не зарегистрированы! Используйте /start.")
+            await callback.answer()
+            return
+            
+        if user.user_type == "company" and user.ad_slots <= 0:
+            kb = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="💎 Купить пакет", callback_data="buy_slots_from_create")],
+                [InlineKeyboardButton(text="🔙 В главное меню", callback_data="back_to_main")]
+            ])
+            await callback.message.answer(
+                "⚠️ <b>У вас закончились доступные слоты для объявлений.</b>\n\n"
+                "Так как вы зарегистрировались как <b>Компания</b>, для размещения в аренду необходимо иметь оплаченный пакет.\n\n"
+                "Пожалуйста, приобретите новый пакет для продолжения.",
+                parse_mode="HTML",
+                reply_markup=kb
+            )
+            await callback.answer()
+            return
 
-    await callback.message.answer(
-        "📝 <b>Создание объявления (Шаг 1/9)</b>\n\n"
-        "Выберите город из списка:",
-        parse_mode="HTML",
-        reply_markup=get_cities_kb()
-    )
     await state.set_state(ListingCreateStates.waiting_for_city)
+    # Assuming get_cities_keyboard is similar to get_cities_kb but might be in a different module
+    # If get_cities_keyboard is not defined, you might need to adjust this line
+    # For now, using the existing get_cities_kb()
+    await callback.message.edit_text("📍 Выберите город:", reply_markup=get_cities_kb())
     await callback.answer()
 
 

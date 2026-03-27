@@ -53,3 +53,11 @@ async def update_user_phone(session: AsyncSession, telegram_id: int, phone: str)
         await session.commit()
         await session.refresh(user)
     return user
+
+
+async def get_user_by_db_id(session: AsyncSession, user_id: int) -> User | None:
+    """Найти пользователя по id в БД"""
+    result = await session.execute(
+        select(User).where(User.id == user_id)
+    )
+    return result.scalar_one_or_none()

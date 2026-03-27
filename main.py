@@ -7,7 +7,8 @@ from bot.handlers import (
     start_router, profile_router, menu_router, 
     listing_create_router, catalog_router, admin_router, 
     admin_moderation_router, my_listings_router, 
-    education_router, sales_router
+    education_router, sales_router, packages_router,
+    search_router, seller_profile_router
 )
 from db.base import init_db
 

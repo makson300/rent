@@ -83,10 +83,15 @@ async def show_category_listings(callback: types.CallbackQuery):
             f"📞 <b>Контакты:</b> {listing.contacts}"
         )
         
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="👤 Профиль продавца", callback_data=f"view_seller_{listing.user_id}")],
+            [InlineKeyboardButton(text="💬 Написать владельцу", url=f"tg://user?id={listing.user.telegram_id}" if listing.user else f"https://t.me/share/url?url={listing.contacts}")]
+        ])
+        
         if listing.photos:
             photo_id = listing.photos[0].photo_id
-            await callback.message.answer_photo(photo_id, caption=text[:1024], parse_mode="HTML")
+            await callback.message.answer_photo(photo_id, caption=text[:1024], parse_mode="HTML", reply_markup=kb)
         else:
-            await callback.message.answer(text, parse_mode="HTML")
+            await callback.message.answer(text, parse_mode="HTML", reply_markup=kb)
             
     await callback.answer()
