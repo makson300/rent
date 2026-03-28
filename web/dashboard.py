@@ -2,8 +2,10 @@ import uvicorn
 import logging
 import os
 import sys
+import secrets
 from pathlib import Path
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends, HTTPException, status
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy import select, func
@@ -41,15 +43,56 @@ async def startup_event():
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    logger.error(f"Global error: {exc}", exc_info=True)
+    # Log full details server-side, but never expose internals to the client
+    logger.error(f"Global error on {request.url.path}: {exc}", exc_info=True)
     return JSONResponse(
         status_code=500,
-        content={"message": "Internal Server Error", "detail": str(exc)},
+        content={"message": "Internal Server Error"},
     )
+
+# --- Admin Auth Middleware ---
+from bot.config import ADMIN_DASHBOARD_PASSWORD, WEBHOOK_SECRET
+
+security = HTTPBasic(auto_error=False)
+
+async def verify_admin(credentials: HTTPBasicCredentials = Depends(security)):
+    """Basic auth guard for admin routes. Skipped if ADMIN_DASHBOARD_PASSWORD is empty (dev mode)."""
+    if not ADMIN_DASHBOARD_PASSWORD:
+        return  # No password set — dev mode, allow all
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    if not secrets.compare_digest(credentials.password, ADMIN_DASHBOARD_PASSWORD):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+
+@app.get("/health")
+async def health_check():
+    """Health check for Docker and monitoring — no auth required."""
+    db_ok = False
+    try:
+        async with async_session() as session:
+            await session.execute(select(func.count()).select_from(User))
+            db_ok = True
+    except Exception:
+        pass
+    return {"status": "ok" if db_ok else "degraded", "db": db_ok}
 
 @app.post("/webhook")
 async def telegram_webhook(request: Request):
-    """Прием обновлений от Telegram (Webhook)"""
+    """Прием обновлений от Telegram (Webhook) с валидацией секретного токена"""
+    # Validate the secret token if configured — prevents spoofed webhook calls
+    if WEBHOOK_SECRET:
+        token = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+        if not secrets.compare_digest(token, WEBHOOK_SECRET):
+            logger.warning(f"Webhook rejected: invalid secret token from {request.client.host}")
+            return JSONResponse(status_code=403, content={"ok": False})
     try:
         from aiogram.types import Update
         bot = request.app.state.bot
@@ -61,9 +104,9 @@ async def telegram_webhook(request: Request):
         return {"ok": True}
     except Exception as e:
         logger.error(f"Error processing webhook: {e}")
-        return {"ok": False, "error": str(e)}
+        return JSONResponse(status_code=500, content={"ok": False})
 
-@app.get("/")
+@app.get("/", dependencies=[Depends(verify_admin)])
 async def home(request: Request):
     try:
         async with async_session() as session:
@@ -98,7 +141,7 @@ async def home(request: Request):
         logger.error(f"Error rendering home: {e}", exc_info=True)
         raise e
 
-@app.get("/listings")
+@app.get("/listings", dependencies=[Depends(verify_admin)])
 async def listings_page(request: Request):
     """Страница со всеми объявлениями"""
     try:
@@ -117,7 +160,7 @@ async def listings_page(request: Request):
         logger.error(f"Error rendering listings: {e}", exc_info=True)
         raise e
 
-@app.post("/listings/{listing_id}/approve")
+@app.post("/listings/{listing_id}/approve", dependencies=[Depends(verify_admin)])
 async def approve_listing_web(listing_id: int):
     """Одобрение объявления через веб"""
     try:
@@ -132,7 +175,7 @@ async def approve_listing_web(listing_id: int):
         logger.error(f"Error approving listing {listing_id}: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
 
-@app.post("/listings/{listing_id}/reject")
+@app.post("/listings/{listing_id}/reject", dependencies=[Depends(verify_admin)])
 async def reject_listing_web(listing_id: int):
     """Отклонение объявления через веб"""
     try:
@@ -147,7 +190,7 @@ async def reject_listing_web(listing_id: int):
         logger.error(f"Error rejecting listing {listing_id}: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
 
-@app.get("/feedback")
+@app.get("/feedback", dependencies=[Depends(verify_admin)])
 async def feedback_page(request: Request):
     """Страница с обратной связью"""
     try:
@@ -166,7 +209,7 @@ async def feedback_page(request: Request):
         logger.error(f"Error rendering feedback: {e}", exc_info=True)
         raise e
 
-@app.post("/feedback/{feedback_id}/process")
+@app.post("/feedback/{feedback_id}/process", dependencies=[Depends(verify_admin)])
 async def process_feedback_web(feedback_id: int):
     """Отметка обратной связи как обработанной"""
     try:
@@ -182,7 +225,7 @@ async def process_feedback_web(feedback_id: int):
         logger.error(f"Error processing feedback {feedback_id}: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
 
-@app.get("/applications")
+@app.get("/applications", dependencies=[Depends(verify_admin)])
 async def applications(request: Request):
     try:
         async with async_session() as session:
@@ -198,7 +241,7 @@ async def applications(request: Request):
         logger.error(f"Error rendering applications: {e}", exc_info=True)
         raise e
 
-@app.get("/emergencies")
+@app.get("/emergencies", dependencies=[Depends(verify_admin)])
 async def emergencies_page(request: Request):
     """Страница Центра ЧС"""
     try:
@@ -217,7 +260,7 @@ async def emergencies_page(request: Request):
         logger.error(f"Error rendering emergencies: {e}", exc_info=True)
         raise e
 
-@app.post("/emergencies/{alert_id}/approve")
+@app.post("/emergencies/{alert_id}/approve", dependencies=[Depends(verify_admin)])
 async def approve_emergency_web(alert_id: int):
     """Одобрение ЧС (интерфейс)"""
     try:
@@ -233,7 +276,7 @@ async def approve_emergency_web(alert_id: int):
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
-@app.post("/emergencies/{alert_id}/reject")
+@app.post("/emergencies/{alert_id}/reject", dependencies=[Depends(verify_admin)])
 async def reject_emergency_web(alert_id: int):
     """Отклонение ЧС"""
     try:

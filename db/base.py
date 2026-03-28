@@ -8,7 +8,16 @@ class Base(DeclarativeBase):
     pass
 
 
-engine = create_async_engine(DATABASE_URL, echo=False)
+engine_kwargs = {"echo": False}
+if "sqlite" not in DATABASE_URL:
+    engine_kwargs.update({
+        "pool_size": 5,        # base number of persistent connections
+        "max_overflow": 10,    # extra connections allowed during spikes
+        "pool_recycle": 3600,  # recycle stale connections every hour
+        "pool_pre_ping": True, # verify connection is alive before using it
+    })
+
+engine = create_async_engine(DATABASE_URL, **engine_kwargs)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 

@@ -13,6 +13,13 @@ USE_WEBHOOK = os.getenv("USE_WEBHOOK", "False").lower() == "true"
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 WEBHOOK_PATH = "/webhook"
 
+# Security: secret token Telegram sends in X-Telegram-Bot-Api-Secret-Token header
+# to verify webhook requests are genuine
+WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "")
+
+# Admin dashboard basic auth password (empty = no auth, for dev only)
+ADMIN_DASHBOARD_PASSWORD = os.getenv("ADMIN_DASHBOARD_PASSWORD", "")
+
 # Telegram ID администраторов (через запятую в .env)
 _admin_ids_raw = os.getenv("ADMIN_IDS", "")
 ADMIN_IDS: list[int] = [int(x.strip()) for x in _admin_ids_raw.split(",") if x.strip()]

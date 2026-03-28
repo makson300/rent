@@ -113,6 +113,9 @@ async def process_seller_type(message: types.Message, state: FSMContext):
 
 @router.message(ListingCreateStates.waiting_for_title, F.text)
 async def process_title(message: types.Message, state: FSMContext):
+    if len(message.text) > 100:
+        await message.answer("⚠️ Название слишком длинное. Максимум 100 символов.")
+        return
     await state.update_data(title=message.text)
     await message.answer(
         "📝 <b>Шаг 4/9</b>\nВведите подробное описание оборудования:\n\n"
@@ -124,6 +127,9 @@ async def process_title(message: types.Message, state: FSMContext):
 
 @router.message(ListingCreateStates.waiting_for_description, F.text)
 async def process_description(message: types.Message, state: FSMContext):
+    if len(message.text) > 2000:
+        await message.answer("⚠️ Описание слишком длинное. Максимум 2000 символов.")
+        return
     await state.update_data(description=message.text)
     await message.answer("📝 <b>Шаг 5/9</b>\nУкажите условия залога (требуется ли паспорт, депозит и т.д.):")
     await state.set_state(ListingCreateStates.waiting_for_deposit)
@@ -312,7 +318,7 @@ async def process_successful_payment(message: types.Message, state: FSMContext):
     
     async with async_session() as session:
         # Получаем реального ID пользователя из БД
-        db_user = await get_user(session, callback.from_user.id)
+        db_user = await get_user(session, message.from_user.id)
         user_db_id = db_user.id if db_user else 1 # Фоллбек на системного, если не зарегистрирован
         
         # Определяем тип объявления и категорию
@@ -380,7 +386,7 @@ async def process_successful_payment(message: types.Message, state: FSMContext):
     
     admin_text = (
         f"🆕 <b>Новое объявление на модерации!</b>\n\n"
-        f"👤 От: {callback.from_user.full_name} (@{callback.from_user.username})\n"
+        f"👤 От: {message.from_user.full_name} (@{message.from_user.username})\n"
         f"🏙 Город: {data['city']}\n"
         f"🏷 Категория: {data['category']}\n"
         f"📦 Название: {data['title']}\n"
@@ -391,21 +397,20 @@ async def process_successful_payment(message: types.Message, state: FSMContext):
     for admin_id in ADMIN_IDS:
         try:
             if photos:
-                await callback.bot.send_photo(
+                await message.bot.send_photo(
                     admin_id, photos[0], caption=admin_text[:1024], reply_markup=admin_kb, parse_mode="HTML"
                 )
             else:
-                await callback.bot.send_message(
+                await message.bot.send_message(
                     admin_id, admin_text, reply_markup=admin_kb, parse_mode="HTML"
                 )
         except Exception as e:
             logger.error(f"Failed to notify admin {admin_id}: {e}")
 
     await state.clear()
-    await callback.message.answer(
+    await message.answer(
         "✅ <b>Ваше объявление успешно создано и отправлено на модерацию!</b>\n\n"
         "Мы сообщим вам, когда оно станет активно.",
         parse_mode="HTML",
         reply_markup=get_main_menu()
     )
-    await callback.answer()

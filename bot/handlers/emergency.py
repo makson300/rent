@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import re
 from aiogram import Router, types, F
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -39,9 +40,14 @@ async def cancel_emergency(message: types.Message, state: FSMContext):
 @router.message(EmergencyReportStates.waiting_for_description)
 async def process_emergency_text(message: types.Message, state: FSMContext):
     raw_text = message.text
-    if len(raw_text) < 15:
+    if not raw_text or len(raw_text) < 15:
         await message.answer("⚠️ Описание слишком короткое. Пожалуйста, опишите ситуацию подробнее.")
         return
+    if len(raw_text) > 2000:
+        await message.answer("⚠️ Слишком длинное описание. Пожалуйста, уложитесь в 2000 символов.")
+        return
+    # Strip HTML tags to prevent injection into admin messages
+    raw_text = re.sub(r'<[^>]+>', '', raw_text)
         
     wait_msg = await message.answer(
         "⏳ Заявка принята. Нейросеть (MoMoA) анализирует данные перед отправкой дежурному модератору...",
@@ -90,9 +96,30 @@ async def process_alert_via_momoa(user_id: int, raw_text: str, wait_msg: types.M
             f"🚁 Оборудование: {analyst_result.get('required_drone_type')}"
         )
         
-        # Уведомляем админов (эту часть доделаем позже)
-        # from bot.handlers.admin import notify_admins_about_alert
-        # await notify_admins_about_alert(wait_msg.bot, alert_id)
+        # Notify admins about new emergency alert
+        from bot.config import ADMIN_IDS
+        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+        admin_kb = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="✅ Подтвердить", callback_data=f"em_approve_{alert_id}"),
+                InlineKeyboardButton(text="❌ Отклонить", callback_data=f"em_reject_{alert_id}")
+            ]
+        ])
+        admin_text = (
+            f"🚨 <b>Новая заявка ЧП #{alert_id}</b>\n\n"
+            f"📍 Локация: {analyst_result.get('location', 'Неизвестно')}\n"
+            f"🔥 Тип: {analyst_result.get('incident_type', 'Другое')}\n"
+            f"🚁 Нужен: {analyst_result.get('required_drone_type', 'Любой')}\n"
+            f"📝 Текст: {raw_text[:300]}\n\n"
+            f"🤖 AI: {analyst_result.get('hypothesis', 'N/A')}"
+        )
+        for admin_id in ADMIN_IDS:
+            try:
+                await wait_msg.bot.send_message(
+                    admin_id, admin_text, parse_mode="HTML", reply_markup=admin_kb
+                )
+            except Exception as e:
+                logger.error(f"Failed to notify admin {admin_id} about alert: {e}")
         
     except Exception as e:
         logger.error(f"MoMoA Error: {e}")

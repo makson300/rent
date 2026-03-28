@@ -3,7 +3,7 @@ import logging
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.storage.redis import RedisStorage
-from bot.config import BOT_TOKEN, PROXY_URL, REDIS_URL, USE_WEBHOOK, WEBHOOK_URL
+from bot.config import BOT_TOKEN, PROXY_URL, REDIS_URL, USE_WEBHOOK, WEBHOOK_URL, WEBHOOK_SECRET
 from bot.handlers import (
     start_router, profile_router, menu_router, 
     listing_create_router, catalog_router, admin_router, 
@@ -89,7 +89,10 @@ async def main():
         
         if USE_WEBHOOK:
             logger.info(f"Setting webhook to {WEBHOOK_URL}...")
-            await bot.set_webhook(url=WEBHOOK_URL, drop_pending_updates=True)
+            webhook_kwargs = {"url": WEBHOOK_URL, "drop_pending_updates": True}
+            if WEBHOOK_SECRET:
+                webhook_kwargs["secret_token"] = WEBHOOK_SECRET
+            await bot.set_webhook(**webhook_kwargs)
             logger.info("Webhook set. Starting FastAPI server...")
             
             import uvicorn
