@@ -22,11 +22,19 @@ from bot.handlers.packages import router as packages_router
 from bot.handlers.search import router as search_router
 from bot.handlers.seller_profile import router as seller_profile_router
 from bot.handlers.operators import router as operators_router
+from bot.handlers.support import router as support_router
+from bot.handlers.emergency import router as emergency_router
+from bot.handlers.admin_emergency import router as admin_emergency_router
+from bot.handlers.admin_advisor import router as admin_advisor_router
+from bot.handlers.booking import router as booking_router
+from bot.handlers.contract import router as contract_router
 
 __all__ = [
     "start_router", "profile_router", "menu_router", 
     "listing_create_router", "catalog_router", "admin_router", 
     "admin_moderation_router", "my_listings_router", 
     "education_router", "sales_router", "packages_router",
-    "search_router", "seller_profile_router", "operators_router"
+    "search_router", "seller_profile_router", "operators_router",
+    "support_router", "emergency_router", "admin_emergency_router",
+    "admin_advisor_router", "booking_router", "contract_router"
 ]

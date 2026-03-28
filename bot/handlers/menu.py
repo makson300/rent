@@ -48,9 +48,12 @@ async def rent_out_menu(message: types.Message):
             "<i>Выберите пакет для продолжения публикации.</i>"
         )
         kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="💳 Пакет 1 мес (2500 ₽)", callback_data="pay_tariff_company_1")],
-            [InlineKeyboardButton(text="💳 Пакет 6 мес (7000 ₽)", callback_data="pay_tariff_company_6")],
-            [InlineKeyboardButton(text="💳 Пакет 12 мес (9000 ₽)", callback_data="pay_tariff_company_12")]
+            [InlineKeyboardButton(text="💳 1 мес (2500 ₽)", callback_data="pay_tariff_company_1"),
+             InlineKeyboardButton(text="⭐️ 1 мес (1250 ⭐️)", callback_data="pay_tariff_xtr_company_1")],
+            [InlineKeyboardButton(text="💳 6 мес (7000 ₽)", callback_data="pay_tariff_company_6"),
+             InlineKeyboardButton(text="⭐️ 6 мес (3500 ⭐️)", callback_data="pay_tariff_xtr_company_6")],
+            [InlineKeyboardButton(text="💳 12 мес (9000 ₽)", callback_data="pay_tariff_company_12"),
+             InlineKeyboardButton(text="⭐️ 12 мес (4500 ⭐️)", callback_data="pay_tariff_xtr_company_12")]
         ])
     else:
         text = (
@@ -66,9 +69,10 @@ async def rent_out_menu(message: types.Message):
             "<i>Вы можете выбрать разовое размещение или выгодный пакет.</i>"
         )
         kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="💳 1 объявление / 1 мес (700 ₽)", callback_data="pay_tariff_private_1")],
-            [InlineKeyboardButton(text="💳 Пакет 5 обък. / 1 мес (2500 ₽)", callback_data="pay_tariff_company_1")],
-            [InlineKeyboardButton(text="⚙️ Другие варианты", callback_data="more_tariffs")]
+            [InlineKeyboardButton(text="💳 1 мес (700 ₽)", callback_data="pay_tariff_private_1"),
+             InlineKeyboardButton(text="⭐️ 1 мес (350 ⭐️)", callback_data="pay_tariff_xtr_private_1")],
+            [InlineKeyboardButton(text="💳 Пакет 1 мес (2500 ₽)", callback_data="pay_tariff_company_1"),
+             InlineKeyboardButton(text="⭐️ Пакет 1 мес (1250 ⭐️)", callback_data="pay_tariff_xtr_company_1")]
         ])
         
     await message.answer(text, parse_mode="HTML", reply_markup=kb)
@@ -127,6 +131,48 @@ async def check_payment_handler(callback: types.CallbackQuery, state: FSMContext
     else:
         await callback.answer(f"Платеж еще не подтвержден. Статус: {status}", show_alert=True)
 
+@router.callback_query(F.data.startswith("pay_tariff_xtr_"))
+async def process_payment_xtr_init(callback: types.CallbackQuery):
+    """Инициация оплаты через Stars"""
+    parts = callback.data.split("_")
+    u_type = parts[3]
+    duration = parts[4]
+
+    prices_rub = {
+        "private": {"1": 700, "6": 2500, "12": 3500},
+        "company": {"1": 2500, "6": 7000, "12": 9000}
+    }
+
+    amount_rub = prices_rub.get(u_type, {}).get(duration, 100)
+    amount_xtr = amount_rub // 2 # 1:2 конвертация
+
+    description = f"Оплата размещения ({u_type}, {duration} мес) в RentBot"
+
+    from aiogram.types import LabeledPrice
+    await callback.message.answer_invoice(
+        title="Оплата тарифа",
+        description=description,
+        payload=f"pay_tariff_xtr_{u_type}_{duration}_{callback.from_user.id}",
+        provider_token="",
+        currency="XTR",
+        prices=[LabeledPrice(label="Тариф размещения", amount=amount_xtr)]
+    )
+    await callback.answer()
+
+@router.pre_checkout_query(lambda query: query.invoice_payload.startswith("pay_tariff_xtr_"))
+async def pre_checkout_tariff_xtr(pre_checkout_query: types.PreCheckoutQuery):
+    await pre_checkout_query.answer(ok=True)
+
+@router.message(F.successful_payment, lambda message: message.successful_payment.invoice_payload.startswith("pay_tariff_xtr_"))
+async def process_tariff_payment_xtr(message: types.Message, state: FSMContext):
+    await message.answer(
+        "✅ <b>Оплата Stars прошла успешно!</b>\n\n"
+        "Теперь вы можете приступить к созданию объявления.",
+        parse_mode="HTML"
+    )
+    from bot.handlers.listing_create import start_listing_create
+    await start_listing_create(message, state)
+
 
 @router.message(F.text == "📩 Обратная связь")
 async def feedback_start(message: types.Message, state: FSMContext):
@@ -184,18 +230,42 @@ async def process_feedback_message(message: types.Message, state: FSMContext):
             user_id=user_db_id,
             type=f_type,
             message=message.text,
-            status="new"
+            status="pending"
         )
         session.add(new_feedback)
         await session.commit()
+        feedback_id = new_feedback.id
     
     await state.clear()
-    await message.answer(
-        "✅ <b>Спасибо за обратную связь!</b>\n"
-        "Ваше сообщение отправлено администрации и будет рассмотрено в ближайшее время.",
-        parse_mode="HTML",
-        reply_markup=get_main_menu()
-    )
+    
+    # AI Support Query
+    from bot.services.support_agent import ask_support_agent
+    ai_answer = await ask_support_agent(message.text)
+    
+    from bot.keyboards.main_menu import get_main_menu
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    
+    if ai_answer:
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="💬 Позвать человека", callback_data=f"escalate_{feedback_id}")]
+        ])
+        await message.answer(
+            f"🤖 <b>Ответ ИИ-Саппорта:</b>\n\n{ai_answer}",
+            parse_mode="HTML",
+            reply_markup=kb
+        )
+        await message.answer("⬇️", reply_markup=get_main_menu())
+    else:
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="💬 Передать администратору", callback_data=f"escalate_{feedback_id}")]
+        ])
+        await message.answer(
+            "✅ <b>Спасибо за обратную связь!</b>\n"
+            "Если вам требуется помощь человека, нажмите кнопку ниже.",
+            parse_mode="HTML",
+            reply_markup=kb
+        )
+        await message.answer("Перешли в меню.", reply_markup=get_main_menu())
 
 @router.callback_query(F.data == "cancel_feedback")
 async def cancel_feedback(callback: types.CallbackQuery, state: FSMContext):

@@ -19,6 +19,7 @@ async def create_user(
     username: str | None = None,
     phone: str | None = None,
     user_type: str = "private",
+    referrer_id: int | None = None,
 ) -> User:
     """Создать нового пользователя"""
     user = User(
@@ -28,6 +29,7 @@ async def create_user(
         username=username,
         phone=phone,
         user_type=user_type,
+        referrer_id=referrer_id,
     )
     session.add(user)
     await session.commit()
@@ -61,3 +63,17 @@ async def get_user_by_db_id(session: AsyncSession, user_id: int) -> User | None:
         select(User).where(User.id == user_id)
     )
     return result.scalar_one_or_none()
+
+async def get_all_users(session: AsyncSession):
+    """Получить всех пользователей для рассылки"""
+    result = await session.execute(select(User))
+    return result.scalars().all()
+
+async def set_user_ban_status(session: AsyncSession, telegram_id: int, is_banned: bool) -> bool:
+    """Установить статус блокировки пользователя. Возвращает True если юзер найден."""
+    user = await get_user(session, telegram_id)
+    if user:
+        user.is_banned = is_banned
+        await session.commit()
+        return True
+    return False

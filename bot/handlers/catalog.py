@@ -85,10 +85,29 @@ async def show_category_listings(callback: types.CallbackQuery):
         return
         
     listing = current_listings[0] # Display one card
+    
+    from db.models.review import Review
+    from sqlalchemy import select, func
+    async with async_session() as session:
+        rating_res = await session.execute(
+            select(func.avg(Review.rating), func.count(Review.id))
+            .where(Review.target_user_id == listing.user_id)
+        )
+        avg_rating, review_count = rating_res.fetchone()
+        
+    avg_rating = round(avg_rating, 1) if avg_rating else 0
+    seller_badges = ""
+    user = listing.user
+    if getattr(user, 'volunteer_rescues', 0) > 0:
+        seller_badges += " 🏅"
+    if review_count >= 3 and avg_rating >= 4.8:
+        seller_badges += " ⭐️ Топ-Владелец"
+
     availability = "✅ Свободно" if not listing.booked_dates else f"📅 Занято: {listing.booked_dates}"
     text = (
         f"🔍 <b>{city_name} | {cat_name}</b> ({page+1}/{total})\n\n"
-        f"📦 <b>{listing.title}</b>\n\n"
+        f"📦 <b>{listing.title}</b>\n"
+        f"👤 <b>Владелец:</b> {user.first_name}{seller_badges} (⭐ {avg_rating})\n\n"
         f"📝 {listing.description}\n\n"
         f"📊 <b>Статус:</b> {availability}\n\n"
         f"💰 <b>Цены:</b>\n{listing.price_list}\n\n"
@@ -104,9 +123,11 @@ async def show_category_listings(callback: types.CallbackQuery):
         nav_buttons.append(types.InlineKeyboardButton(text="След. ➡️", callback_data=f"vcat:{city_id}:{cat_id}:{page+1}"))
         
     kb = types.InlineKeyboardMarkup(inline_keyboard=[
+        [types.InlineKeyboardButton(text="📅 Оформить аренду", callback_data=f"book_listing_{listing.id}")],
         [types.InlineKeyboardButton(text="👤 Профиль продавца", callback_data=f"view_seller_{listing.user_id}")],
         [types.InlineKeyboardButton(text="💬 Написать владельцу", url=f"tg://user?id={listing.user.telegram_id}" if getattr(listing, 'user', None) else f"https://t.me/share/url?url={listing.contacts}")],
         nav_buttons,
+        [types.InlineKeyboardButton(text="🚨 Пожаловаться", callback_data=f"report_listing_{listing.id}")],
         [types.InlineKeyboardButton(text="🔙 К категориям", callback_data=f"view_city_{city_id}")]
     ])
 
@@ -128,3 +149,97 @@ async def show_category_listings(callback: types.CallbackQuery):
             await callback.message.answer(text, parse_mode="HTML", reply_markup=kb)
             
     await callback.answer()
+
+from bot.config import ADMIN_IDS
+
+@router.callback_query(F.data.startswith("report_listing_"))
+async def report_listing(callback: types.CallbackQuery):
+    listing_id = int(callback.data.split("_")[2])
+    
+    # Send report to admins
+    if ADMIN_IDS:
+        target_admin = ADMIN_IDS[0]
+        text = (
+            f"🚨 <b>Жалоба на объявление!</b>\n\n"
+            f"Пользователь ID <code>{callback.from_user.id}</code> (@{callback.from_user.username}) "
+            f"пожаловался на объявление ID {listing_id}.\n\n"
+            f"Проверьте объявление через панель или БД."
+        )
+        try:
+            await callback.bot.send_message(chat_id=target_admin, text=text, parse_mode="HTML")
+            await callback.answer("✅ Ваша жалоба отправлена модераторам.", show_alert=True)
+        except Exception:
+            await callback.answer("⚠️ Ошибка отправки жалобы. Попробуйте позже.", show_alert=True)
+    else:
+        await callback.answer("⚠️ Модераторы временно недоступны.", show_alert=True)
+
+import json
+
+@router.message(F.web_app_data)
+async def handle_webapp_data(message: types.Message):
+    """Обработка данных, возвращаемых из WebApp (TMA)"""
+    data_str = message.web_app_data.data
+    try:
+        data = json.loads(data_str)
+        action = data.get("action")
+        listing_id = data.get("id")
+        
+        if action == "view" and listing_id:
+            from db.crud.listing import get_listing
+            async with async_session() as session:
+                listing = await get_listing(session, int(listing_id))
+                
+            if not listing:
+                await message.answer("⚠️ Объявление не найдено или удалено.")
+                return
+                
+            cat_map = {1: "Аренда", 2: "Продажа", 6: "Оператор"}
+            cat_name = cat_map.get(listing.category_id, "Оборудование")
+            city_name = listing.city
+            
+            from db.models.review import Review
+            from sqlalchemy import select, func
+            async with async_session() as session:
+                rating_res = await session.execute(
+                    select(func.avg(Review.rating), func.count(Review.id))
+                    .where(Review.target_user_id == listing.user_id)
+                )
+                avg_rating, review_count = rating_res.fetchone()
+                
+            avg_rating = round(avg_rating, 1) if avg_rating else 0
+            seller_badges = ""
+            user = listing.user
+            if getattr(user, 'volunteer_rescues', 0) > 0:
+                seller_badges += " 🏅"
+            if review_count >= 3 and avg_rating >= 4.8:
+                seller_badges += " ⭐️ Топ-Владелец"
+        
+            availability = "✅ Свободно" if not listing.booked_dates else f"📅 Занято: {listing.booked_dates}"
+            text = (
+                f"🔍 <b>{city_name} | {cat_name}</b>\n\n"
+                f"📦 <b>{listing.title}</b>\n"
+                f"👤 <b>Владелец:</b> {user.first_name}{seller_badges} (⭐ {avg_rating})\n\n"
+                f"📝 {listing.description}\n\n"
+                f"📊 <b>Статус:</b> {availability}\n\n"
+                f"💰 <b>Цены:</b>\n{listing.price_list}\n\n"
+                f"🚚 <b>Доставка:</b> {listing.delivery_terms}\n"
+                f"🛡 <b>Залог:</b> {listing.deposit_terms}\n\n"
+                f"📞 <b>Контакты:</b> {listing.contacts}"
+            )
+            
+            kb = types.InlineKeyboardMarkup(inline_keyboard=[
+                [types.InlineKeyboardButton(text="📅 Оформить", callback_data=f"book_listing_{listing.id}")],
+                [types.InlineKeyboardButton(text="👤 Профиль продавца", callback_data=f"view_seller_{listing.user_id}")],
+                [types.InlineKeyboardButton(text="💬 Написать владельцу", url=f"tg://user?id={listing.user.telegram_id}" if getattr(listing, 'user', None) else f"https://t.me/share/url?url={listing.contacts}")]
+            ])
+        
+            if listing.photos:
+                photo_id = listing.photos[0].photo_id
+                await message.answer_photo(photo_id, caption=text[:1024], parse_mode="HTML", reply_markup=kb)
+            else:
+                await message.answer(text, parse_mode="HTML", reply_markup=kb)
+                
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Error handling web_app_data: {e}")
+        await message.answer("⚠️ Ошибка обработки запроса из каталога.")

@@ -21,17 +21,33 @@ async def sales_catalog(message: types.Message):
     ])
     
     await message.answer(
-        "📢 <b>Доска объявлений о продаже (Партнеры и пользователи)</b>\n\n"
-        "Здесь вы найдете оборудование от нашего первого партнера @drone_IT_Shop, а также объявления от других пользователей.\n\n"
-        "🔹 <i>Для пользователей публикация в этом разделе БЕСПЛАТНА (после модерации).</i>\n\n"
-        "Следите за обновлениями!",
+        "📢 <b>Доска объявлений о продаже</b>\n\n"
+        "Здесь вы можете купить или продать оборудование.\n\n"
+        "🔹 Публикация объявлений разделена для Магазинов (новое) и Частных лиц (б/у).",
         parse_mode="HTML",
         reply_markup=kb
     )
 
 @router.callback_query(F.data == "view_sales_list")
-async def show_sales_list(callback: types.CallbackQuery):
-    """Показ активных объявлений о продаже"""
+async def show_sales_list_cats(callback: types.CallbackQuery):
+    """Показ выбора категории продавца"""
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🏢 От магазинов (Новое)", callback_data="sales_cat_store")],
+        [InlineKeyboardButton(text="👤 От собственников (Б/У)", callback_data="sales_cat_individual")],
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="back_to_sales_main")]
+    ])
+    await callback.message.edit_text(
+        "🛒 <b>Выберите категорию товаров:</b>",
+        parse_mode="HTML",
+        reply_markup=kb
+    )
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("sales_cat_"))
+async def show_sales_items(callback: types.CallbackQuery):
+    """Показ объявлений по типу продавца"""
+    seller_type = callback.data.split("_")[2] # "store" or "individual"
     from sqlalchemy import select
     from db.base import async_session
     from db.models.listing import Listing
@@ -43,15 +59,18 @@ async def show_sales_list(callback: types.CallbackQuery):
             .options(selectinload(Listing.photos))
             .where(Listing.listing_type == "sale")
             .where(Listing.status == "active")
+            .where(Listing.seller_type == seller_type)
         )
         listings = result.scalars().all()
         
+    title = "Магазины (Новое)" if seller_type == "store" else "Частные лица (Б/У)"
+    
     if not listings:
-        await callback.message.answer("😔 Объявлений о продаже пока нет. Будьте первым!")
+        await callback.message.answer(f"😔 В категории <b>{title}</b> пока нет объявлений.")
         await callback.answer()
         return
         
-    await callback.message.answer(f"🛍 <b>Объявления в магазине</b>\nНайдено: {len(listings)}", parse_mode="HTML")
+    await callback.message.answer(f"🛍 <b>{title}</b>\nНайдено: {len(listings)}", parse_mode="HTML")
     
     for l in listings:
         text = (
@@ -65,6 +84,22 @@ async def show_sales_list(callback: types.CallbackQuery):
         else:
             await callback.message.answer(text, parse_mode="HTML")
             
+    await callback.answer()
+
+@router.callback_query(F.data == "back_to_sales_main")
+async def back_to_sales_main(callback: types.CallbackQuery):
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔍 Посмотреть объявления", callback_data="view_sales_list")],
+        [InlineKeyboardButton(text="➕ Разместить объявление", callback_data="start_sale_listing")]
+    ])
+    await callback.message.edit_text(
+        "📢 <b>Доска объявлений о продаже</b>\n\n"
+        "Здесь вы можете купить или продать оборудование.\n\n"
+        "🔹 Публикация объявлений разделена для Магазинов (новое) и Частных лиц (б/у).",
+        parse_mode="HTML",
+        reply_markup=kb
+    )
     await callback.answer()
 
 

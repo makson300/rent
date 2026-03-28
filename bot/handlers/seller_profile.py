@@ -33,11 +33,15 @@ async def view_seller_profile(callback: types.CallbackQuery):
     avg_rating = round(avg_rating, 1) if avg_rating else 0
     stars = "⭐" * int(avg_rating) if avg_rating else "Новый продавец"
     
-    u_type = "🏢 Компания" if seller.user_type == "company" else "👤 Частное лицо"
+    u_type_display = "🏢 Компания / Прокат" if seller.user_type == "company" else "👤 Частное лицо"
+    if getattr(seller, 'volunteer_rescues', 0) > 0:
+        u_type_display += f"\n🏅 <b>Проверенный Волонтер</b> ({seller.volunteer_rescues} выездов на ЧП)"
+    if review_count >= 3 and avg_rating >= 4.8:
+        u_type_display += "\n⭐️ <b>Надежный Арендодатель</b>"
     
     text = (
         f"👤 <b>Профиль продавца</b>\n\n"
-        f"Тип: <b>{u_type}</b>\n"
+        f"Тип: {u_type_display}\n"
         f"Имя: {seller.first_name}\n"
         f"Рейтинг: {stars} ({avg_rating})\n"
         f"Отзывов: {review_count}\n"

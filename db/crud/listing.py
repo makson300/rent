@@ -77,7 +77,8 @@ async def get_listings_by_filter(
     status: str = "active"
 ):
     """Поиск объявлений по фильтрам"""
-    query = select(Listing).options(selectinload(Listing.photos)).where(Listing.status == status)
+    from db.models.user import User
+    query = select(Listing).join(User, Listing.user_id == User.id).options(selectinload(Listing.photos)).where(Listing.status == status, User.is_banned == False)
     
     if city:
         query = query.where(Listing.city == city)
@@ -85,9 +86,9 @@ async def get_listings_by_filter(
         # Assuming we search by category name or we need to join with Category model
         # For simplicity now, let's assume category is a string name or we join
         from db.models.category import Category
-        query = query.join(Category).where(Category.name == category)
+        query = query.join(Category, Listing.category_id == Category.id).where(Category.name == category)
         
-    result = await session.execute(query.order_by(Listing.created_at.desc()))
+    result = await session.execute(query.order_by(Listing.is_promoted.desc(), Listing.created_at.desc()))
     return result.scalars().all()
 
 

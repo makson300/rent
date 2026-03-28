@@ -31,6 +31,48 @@ async def cmd_me(message: types.Message):
     status = "✅ АДМИН" if is_admin(message.from_user.id, message.from_user.username) else "❌ Покупатель"
     await message.answer(f"🆔 Ваш ID: <code>{message.from_user.id}</code>\n🔑 Статус: {status}", parse_mode="HTML")
 
+@router.message(Command("ban"))
+async def ban_user_cmd(message: types.Message):
+    """Бан пользователя по Telegram ID. Использование: /ban 123456789"""
+    if not is_admin(message.from_user.id, message.from_user.username):
+        return
+        
+    args = message.text.split()
+    if len(args) < 2 or not args[1].isdigit():
+        await message.answer("⚠️ Использование: `/ban <telegram_id>`", parse_mode="Markdown")
+        return
+        
+    target_id = int(args[1])
+    async with async_session() as session:
+        from db.crud.user import set_user_ban_status
+        success = await set_user_ban_status(session, target_id, True)
+    
+    if success:
+        await message.answer(f"✅ Пользователь {target_id} ЗАБАНЕН. Его объявления скрыты из поиска.")
+    else:
+        await message.answer(f"❌ Пользователь {target_id} не найден в БД.")
+
+@router.message(Command("unban"))
+async def unban_user_cmd(message: types.Message):
+    """Разбан пользователя по Telegram ID. Использование: /unban 123456789"""
+    if not is_admin(message.from_user.id, message.from_user.username):
+        return
+        
+    args = message.text.split()
+    if len(args) < 2 or not args[1].isdigit():
+        await message.answer("⚠️ Использование: `/unban <telegram_id>`", parse_mode="Markdown")
+        return
+        
+    target_id = int(args[1])
+    async with async_session() as session:
+        from db.crud.user import set_user_ban_status
+        success = await set_user_ban_status(session, target_id, False)
+    
+    if success:
+        await message.answer(f"✅ Пользователь {target_id} РАЗБАНЕН. Его объявления снова доступны.")
+    else:
+        await message.answer(f"❌ Пользователь {target_id} не найден в БД.")
+
 
 
 @router.message(Command("admin"))
@@ -50,7 +92,8 @@ async def admin_main(message: types.Message):
         [InlineKeyboardButton(text="🏢 Открыть Веб-Панель", url="http://127.0.0.1:8000")],
         [InlineKeyboardButton(text="📊 Живая статистика", callback_data="admin_stats")],
         [InlineKeyboardButton(text="👁 Объявления (Модерация)", callback_data="admin_moderation_list")],
-        [InlineKeyboardButton(text="📝 Заявки на обучение", callback_data="admin_education_list")]
+        [InlineKeyboardButton(text="📝 Заявки на обучение", callback_data="admin_education_list")],
+        [InlineKeyboardButton(text="📢 Массовая рассылка", callback_data="admin_broadcast_init")]
     ])
     await message.answer("🛠 <b>Панель администратора</b>\n\nВыберите раздел для управления:", parse_mode="HTML", reply_markup=kb)
 
@@ -98,6 +141,63 @@ async def moderation_list(callback: types.CallbackQuery):
             
     await callback.answer()
 
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
+
+class AdminBroadcastStates(StatesGroup):
+    waiting_for_message = State()
+
+@router.callback_query(F.data == "admin_broadcast_init")
+async def broadcast_init(callback: types.CallbackQuery, state: FSMContext):
+    await state.set_state(AdminBroadcastStates.waiting_for_message)
+    kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="Отмена", callback_data="admin_cancel")]])
+    await callback.message.answer(
+        "📝 <b>Режим рассылки</b>\n\nОтправьте сообщение (текст, фото/видео с подписью), которое нужно разослать всем пользователям бота.",
+        reply_markup=kb, parse_mode="HTML"
+    )
+    await callback.answer()
+
+import asyncio
+from aiogram.exceptions import TelegramRetryAfter
+
+@router.message(AdminBroadcastStates.waiting_for_message)
+async def process_broadcast_message(message: types.Message, state: FSMContext):
+    await state.clear()
+    await message.answer("⏳ Начинаю рассылку... Пожалуйста, подождите.")
+    
+    from db.crud.user import get_all_users
+    async with async_session() as session:
+        users = await get_all_users(session)
+        
+    success_count = 0
+    fail_count = 0
+    
+    for u in users:
+        # Не отправляем самому себе системного юзера с id 0
+        if u.telegram_id == 0:
+            continue
+            
+        try:
+            await message.copy_to(chat_id=u.telegram_id)
+            success_count += 1
+            await asyncio.sleep(0.05) # Защита от FloodLimit
+        except TelegramRetryAfter as e:
+            await asyncio.sleep(e.retry_after)
+            try:
+                await message.copy_to(chat_id=u.telegram_id)
+                success_count += 1
+            except Exception:
+                fail_count += 1
+        except Exception:
+            fail_count += 1
+            
+    await message.answer(f"✅ <b>Рассылка завершена!</b>\nУспешно: {success_count}\nОшибок: {fail_count}", parse_mode="HTML")
+
+import io
+from collections import Counter
+from datetime import datetime
+from aiogram.types import BufferedInputFile
+
 @router.callback_query(F.data == "admin_stats")
 async def admin_stats(callback: types.CallbackQuery):
     async with async_session() as session:
@@ -105,13 +205,94 @@ async def admin_stats(callback: types.CallbackQuery):
         listings_count = await session.scalar(select(func.count()).select_from(Listing).where(Listing.status == "active"))
         apps_count = await session.scalar(select(func.count()).select_from(EducationApplication))
         
+        # Подсчет примерного дохода (Операторы платят 1000 руб/год)
+        operators_count = await session.scalar(
+            select(func.count()).select_from(Listing).where(Listing.listing_type == "operator", Listing.status == "active")
+        )
+        income = (operators_count or 0) * 1000
+        
+        # Получаем данные для графика (рост юзеров)
+        result = await session.execute(select(User.created_at))
+        dates = result.scalars().all()
+        
     text = (
         "📊 <b>Живая статистика</b>\n\n"
         f"👤 Всего пользователей: {users_count or 0}\n"
         f"📦 Активных объявлений: {listings_count or 0}\n"
-        f"📝 Заявок на обучение: {apps_count or 0}"
+        f"📝 Заявок на обучение: {apps_count or 0}\n\n"
+        f"💰 <b>Доход платформы:</b> {income} ₽"
     )
-    await callback.message.answer(text, parse_mode="HTML")
+    
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="admin_back_to_main")]
+    ])
+    
+    try:
+        import matplotlib.pyplot as plt
+        import matplotlib
+        matplotlib.use('Agg') # Для работы без GUI сервера
+        
+        # Группируем по датам
+        safe_dates = []
+        for d in dates:
+            if not d: continue
+            if isinstance(d, str):
+                try: 
+                    d = datetime.fromisoformat(d.split('.')[0])
+                except Exception: 
+                    continue
+            if hasattr(d, 'date'):
+                safe_dates.append(d.date())
+                
+        date_counts = Counter(safe_dates)
+        sorted_dates = sorted(date_counts.keys())
+        
+        if sorted_dates:
+            cumulative = []
+            total = 0
+            for d in sorted_dates:
+                total += date_counts[d]
+                cumulative.append(total)
+                
+            plt.figure(figsize=(8, 4))
+            # d is datetime.date object now
+            x_labels = [d.strftime("%m-%d") for d in sorted_dates]
+            plt.plot(x_labels, cumulative, marker='o', linestyle='-', color='b')
+            plt.fill_between(x_labels, cumulative, color='b', alpha=0.1)
+            plt.title("Рост пользователей")
+            plt.xlabel("Дата")
+            plt.ylabel("Всего пользователей")
+            plt.grid(True, linestyle='--', alpha=0.7)
+            plt.tight_layout()
+            
+            buf = io.BytesIO()
+            plt.savefig(buf, format='png', dpi=100)
+            buf.seek(0)
+            plt.close()
+            
+            photo = BufferedInputFile(buf.getvalue(), filename="stats.png")
+            await callback.message.delete()
+            await callback.message.answer_photo(photo=photo, caption=text, parse_mode="HTML", reply_markup=kb)
+            await callback.answer()
+            return
+            
+    except Exception as e:
+        logger.error(f"Graph generation failed: {e}")
+        
+    await callback.message.edit_text(text, parse_mode="HTML", reply_markup=kb)
+    await callback.answer()
+
+@router.callback_query(F.data == "admin_back_to_main")
+async def admin_back_to_main(callback: types.CallbackQuery):
+    await callback.message.delete()
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🏢 Открыть Веб-Панель", url="http://127.0.0.1:8000")],
+        [InlineKeyboardButton(text="📊 Живая статистика", callback_data="admin_stats")],
+        [InlineKeyboardButton(text="👁 Объявления (Модерация)", callback_data="admin_moderation_list")],
+        [InlineKeyboardButton(text="📝 Заявки на обучение", callback_data="admin_education_list")],
+        [InlineKeyboardButton(text="📢 Массовая рассылка", callback_data="admin_broadcast_init")]
+    ])
+    await callback.message.answer("🛠 <b>Панель администратора</b>\n\nВыберите раздел для управления:", parse_mode="HTML", reply_markup=kb)
     await callback.answer()
 
 @router.callback_query(F.data == "admin_education_list")
@@ -154,14 +335,54 @@ async def admin_edu_done(callback: types.CallbackQuery):
     await callback.message.edit_text(current_text + "\n\n✅ <b>ОБРАБОТАНО</b>", parse_mode="HTML")
     await callback.answer("Заявка отмечена как обработанная")
 
+async def send_search_alerts(bot, listing):
+    from db.base import async_session
+    import asyncio
+    from aiogram.exceptions import TelegramRetryAfter
+    from sqlalchemy import select
+    from db.models.search_sub import SearchSubscription
+    from db.crud.user import get_user
+    
+    async with async_session() as session:
+        search_text = f"{listing.title} {listing.description} {listing.city}".lower()
+        subs = await session.execute(select(SearchSubscription))
+        all_subs = subs.scalars().all()
+        notified_users = set()
+        
+        for sub in all_subs:
+            if sub.keyword.lower() in search_text and sub.user_id not in notified_users:
+                notified_users.add(sub.user_id)
+                u = await get_user(session, sub.user_id)
+                if u and u.telegram_id:
+                    try:
+                        await bot.send_message(
+                            u.telegram_id,
+                            f"🔔 <b>Срочное уведомление!</b>\nПоявилось новое объявление по вашему запросу «{sub.keyword}»:\n\n"
+                            f"📦 <b>{listing.title}</b> ({listing.city})\n\n"
+                            f"Скорее проверьте раздел Поиск на <b>Аренду</b> или <b>Покупку</b>!",
+                            parse_mode="HTML"
+                        )
+                        await asyncio.sleep(0.05)
+                    except TelegramRetryAfter as e:
+                        await asyncio.sleep(e.retry_after)
+                    except Exception:
+                        pass
+
 @router.callback_query(F.data.startswith("admin_approve_"))
 async def approve_listing(callback: types.CallbackQuery):
     listing_id = int(callback.data.split("_")[2])
+    listing = None
     async with async_session() as session:
+        listing = await session.scalar(select(Listing).where(Listing.id == listing_id))
+        
         await session.execute(
             update(Listing).where(Listing.id == listing_id).values(status="active")
         )
         await session.commit()
+    
+    if listing:
+        import asyncio
+        asyncio.create_task(send_search_alerts(callback.bot, listing))
     
     current_caption = callback.message.caption or ""
     await callback.message.edit_caption(caption=current_caption[:1000] + "\n\n✅ <b>ОДОБРЕНО</b>", parse_mode="HTML")

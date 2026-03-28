@@ -1,7 +1,10 @@
 import logging
+from aiogram import Router, types, F
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from sqlalchemy import select, func
 from db.models.review import Review
+from db.base import async_session
+from db.crud.user import get_user
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -26,16 +29,20 @@ async def show_profile(message: types.Message):
     phone_display = user.phone or "не указан"
     created = user.created_at.strftime("%d.%m.%Y") if user.created_at else "—"
     u_type_display = "🏢 Компания / Прокат" if user.user_type == "company" else "👤 Частное лицо"
+    if getattr(user, 'volunteer_rescues', 0) > 0:
+        u_type_display += f"\n🏅 <b>Проверенный Волонтер</b> ({user.volunteer_rescues} выездов на ЧП)"
+        
     avg_rating = round(avg_rating, 1) if avg_rating else 0
     stars = "⭐" * int(avg_rating) if avg_rating else "Нет оценок"
 
     kb_list = [
         [InlineKeyboardButton(text="📋 Мои объявления", callback_data="my_listings_list")],
+        [InlineKeyboardButton(text="🎁 Пригласить друга", callback_data="invite_friend")],
         [InlineKeyboardButton(text="🔙 В главное меню", callback_data="back_to_main")]
     ]
     
     if user.user_type == "company":
-        kb_list.insert(0, [InlineKeyboardButton(text="💎 Пополнить пакет объявлений", callback_data="buy_slots_menu")])
+        kb_list.insert(0, [InlineKeyboardButton(text="💎 Пополнить пакет", callback_data="buy_slots_menu")])
     
     kb = InlineKeyboardMarkup(inline_keyboard=kb_list)
 
@@ -58,4 +65,22 @@ async def show_profile(message: types.Message):
 async def buy_slots_redirect(callback: types.CallbackQuery):
     from bot.handlers.packages import show_packages
     await show_packages(callback.message)
+    await callback.answer()
+
+@router.callback_query(F.data == "invite_friend")
+async def invite_friend(callback: types.CallbackQuery):
+    async with async_session() as session:
+        user = await get_user(session, callback.from_user.id)
+        if not user:
+            return
+            
+    bot_info = await callback.bot.get_me()
+    ref_link = f"https://t.me/{bot_info.username}?start=ref_{user.id}"
+    
+    await callback.message.answer(
+        f"🎁 <b>Приглашайте друзей и получайте бонусы!</b>\n\n"
+        f"Отправьте эту ссылку друзьям. Когда они зарегистрируются и разместят своё первое объявление, вы получите <b>+1 Бесплатное поднятие в ТОП</b> (VIP-размещение) для вашего оборудования!\n\n"
+        f"Ваша ссылка:\n<code>{ref_link}</code>",
+        parse_mode="HTML"
+    )
     await callback.answer()

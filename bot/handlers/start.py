@@ -37,6 +37,22 @@ async def cmd_start(message: types.Message, state: FSMContext):
         await state.set_state(RegistrationStates.waiting_for_contact)
         return
 
+    # Parse deeplink
+    args = message.text.split()
+    referrer_id = None
+    if len(args) > 1 and args[1].startswith("ref_"):
+        try:
+            from db.crud.user import get_user_by_db_id
+            # Assuming args[1] is like 'ref_123'
+            ref_db_id = int(args[1].split("_")[1])
+            # Verify referrer exists
+            async with async_session() as session:
+                ref_user = await get_user_by_db_id(session, ref_db_id)
+                if ref_user:
+                    referrer_id = ref_db_id
+        except Exception as e:
+            logger.error(f"Failed to parse referrer_id: {e}")
+            
     # Новый пользователь — создаём запись и запрашиваем контакт
     async with async_session() as session:
         await create_user(
@@ -45,6 +61,7 @@ async def cmd_start(message: types.Message, state: FSMContext):
             first_name=message.from_user.first_name,
             last_name=message.from_user.last_name,
             username=message.from_user.username,
+            referrer_id=referrer_id,
         )
 
     await message.answer(

@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Модерация - RentBot</title>
+    <title>Центр ЧС - RentBot</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg: #0f172a;
             --card: #1e293b;
-            --primary: #38bdf8;
+            --primary: #f87171;
             --text: #f8fafc;
         }
         body {
@@ -36,8 +36,8 @@
             background: rgba(255,255,255,0.05);
             color: var(--primary);
         }
-        .status-moderation { color: #facc15; }
-        .status-active { color: #4ade80; }
+        .status-pending { color: #facc15; }
+        .status-approved { color: #4ade80; }
         .status-rejected { color: #f87171; }
         
         .nav a {
@@ -58,56 +58,51 @@
         .btn-approve { background: #22c55e; color: white; }
         .btn-reject { background: #ef4444; color: white; }
         form { display: inline; }
+        .ai-summary { background: rgba(0,0,0,0.3); padding: 8px; border-radius: 8px; font-size: 0.9em; margin-top: 5px; border-left: 3px solid #38bdf8;}
     </style>
 </head>
 <body>
     <div class="nav">
         <a href="/">⬅️ Назад на дашборд</a>
-        <a href="/emergencies">🚨 Центр ЧС</a>
+        <a href="/listings">📦 Объявления</a>
     </div>
-    <h1>📦 Управление объявлениями</h1>
+    <h1>🚨 Панель модерации экстренных вызовов (ЧС)</h1>
     <table>
         <thead>
             <tr>
                 <th>ID</th>
-                <th>Тип</th>
-                <th>Заголовок</th>
                 <th>Город</th>
-                <th>Партнер</th>
+                <th>Запрос / ИИ-Анализ</th>
+                <th>Заявитель</th>
                 <th>Статус</th>
                 <th>Действия</th>
             </tr>
         </thead>
         <tbody>
-            {% for listing in listings %}
+            {% for alert in emergencies %}
             <tr>
-                <td>{{ listing.id }}</td>
-                <td>
-                    {% if listing.category_id == 1 %}
-                    <span style="color: #4ade80;">📦 Аренда</span>
-                    {% elif listing.category_id == 2 %}
-                    <span style="color: #38bdf8;">💰 Продажа</span>
-                    {% elif listing.category_id == 6 %}
-                    <span style="color: #facc15;">🚁 Оператор</span>
-                    {% else %}
-                    <span style="color: #94a3b8;">Неизвестно</span>
+                <td>{{ alert.id }}</td>
+                <td><strong>{{ alert.city or "Неизвестно" }}</strong></td>
+                <td style="max-width: 400px; white-space: pre-wrap; word-wrap: break-word;">
+                    {{ alert.raw_text }}
+                    {% if alert.ai_summary %}
+                    <div class="ai-summary">
+                        <strong>🤖 Вердикт MoMoA:</strong><br>
+                        {{ alert.ai_summary }}
+                    </div>
                     {% endif %}
                 </td>
                 <td>
-                    {{ listing.title }}
-                    {% if listing.photos %}
-                    <br><small style="opacity: 0.6;">🖼 {{ listing.photos|length }} фото</small>
-                    {% endif %}
+                    {{ alert.reporter.full_name }}<br>
+                    <small>@{{ alert.reporter.username }}</small>
                 </td>
-                <td>{{ listing.city }}</td>
-                <td>{{ listing.partner_id or "-" }}</td>
-                <td class="status-{{ listing.status }}">{{ listing.status }}</td>
+                <td class="status-{{ alert.status }}">{{ alert.status }}</td>
                 <td>
-                    {% if listing.status == "moderation" %}
-                    <form action="/listings/{{ listing.id }}/approve" method="post" style="display: inline;">
+                    {% if alert.status == "pending" %}
+                    <form action="/emergencies/{{ alert.id }}/approve" method="post" style="display: inline;">
                         <button type="submit" class="btn btn-approve">Одобрить</button>
                     </form>
-                    <form action="/listings/{{ listing.id }}/reject" method="post" style="display: inline;">
+                    <form action="/emergencies/{{ alert.id }}/reject" method="post" style="display: inline;">
                         <button type="submit" class="btn btn-reject">Отклонить</button>
                     </form>
                     {% else %}
@@ -116,6 +111,9 @@
                 </td>
             </tr>
             {% endfor %}
+            {% if not emergencies %}
+            <tr><td colspan="6" style="text-align: center; opacity: 0.5;">Нет экстренных заявок.</td></tr>
+            {% endif %}
         </tbody>
     </table>
 </body>

@@ -71,6 +71,39 @@ async def process_city(message: types.Message, state: FSMContext):
 @router.message(ListingCreateStates.waiting_for_category)
 async def process_category(message: types.Message, state: FSMContext):
     await state.update_data(category=message.text)
+    
+    data = await state.get_data()
+    if data.get("listing_type") == "sale":
+        from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+        kb = ReplyKeyboardMarkup(
+            keyboard=[
+                [KeyboardButton(text="🏢 Магазин (Новые устройства)")],
+                [KeyboardButton(text="👤 Частное лицо (Б/У)")]
+            ],
+            resize_keyboard=True,
+            one_time_keyboard=True
+        )
+        await message.answer(
+            "📝 <b>Уточните тип продавца:</b>\n\n"
+            "Вы публикуете объявление от лица Магазина или как Частное лицо?",
+            reply_markup=kb,
+            parse_mode="HTML"
+        )
+        await state.set_state(ListingCreateStates.waiting_for_seller_type)
+    else:
+        await message.answer(
+            "📝 <b>Шаг 3/9</b>\nВведите название вашего оборудования (до 100 символов):",
+            reply_markup=ReplyKeyboardRemove()
+        )
+        await state.set_state(ListingCreateStates.waiting_for_title)
+
+@router.message(ListingCreateStates.waiting_for_seller_type)
+async def process_seller_type(message: types.Message, state: FSMContext):
+    if "Магазин" in message.text:
+        await state.update_data(seller_type="store")
+    else:
+        await state.update_data(seller_type="individual")
+        
     await message.answer(
         "📝 <b>Шаг 3/9</b>\nВведите название вашего оборудования (до 100 символов):",
         reply_markup=ReplyKeyboardRemove()
@@ -181,6 +214,31 @@ async def finish_photos(callback: types.CallbackQuery, state: FSMContext):
         await callback.answer("Нужно отправить хотя бы одно фото!", show_alert=True)
         return
         
+    # ИИ модерация первого (основного) фото
+    wait_msg = await callback.message.answer("⏳ <i>MoMoA AI анализирует ваше фото на соответствие правилам...</i>", parse_mode="HTML")
+    
+    from bot.services.vision_moderator import analyze_photo_with_vision
+    vision_result = await analyze_photo_with_vision(callback.bot, photos[0])
+    
+    await wait_msg.delete()
+    
+    if not vision_result.get("is_valid", True):
+        # Если ИИ отклонил фото
+        reason = vision_result.get("reason", "Несоответствующее изображение.")
+        await callback.message.answer(
+            f"❌ <b>ИИ-Модератор отклонил ваше фото!</b>\n\n"
+            f"<b>Причина:</b> {reason}\n\n"
+            "Пожалуйста, загрузите реальную фотографию вашего оборудования (БПЛА, техника, и т.д.).",
+            parse_mode="HTML"
+        )
+        # Очищаем фотки, чтобы человек начал заливать их заново, но оставляем остальную сессию (город, цены и тд)
+        await state.update_data(photos=[])
+        
+        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+        kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="✅ Завершить загрузку", callback_data="finish_photos")]])
+        await callback.message.answer("Отправьте фото заново (до 10 шт):", reply_markup=kb)
+        return
+        
     # Показываем предпросмотр
     preview_text = (
         "👀 <b>Предпросмотр вашего объявления:</b>\n\n"
@@ -210,9 +268,43 @@ async def finish_photos(callback: types.CallbackQuery, state: FSMContext):
 @router.callback_query(F.data == "confirm_listing_publish")
 async def confirm_listing_publish(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
-    photos = data.get("photos", [])
+    
+    seller_type = data.get("seller_type", "individual")
+    listing_type = data.get("listing_type", "rental")
+    
+    if listing_type == "sale":
+        price_stars = 250 if seller_type == "store" else 50
+        desc = "Размещение объявления о продаже (Магазин)" if seller_type == "store" else "Размещение объявления о продаже (Б/У)"
+    elif listing_type == "rental":
+        price_stars = 50
+        desc = "Размещение объявления об аренде"
+    else:
+        price_stars = 50
+        desc = "Размещение объявления"
 
-    # Сохраняем в БД
+    from aiogram.types import LabeledPrice
+    prices = [LabeledPrice(label="Оплата", amount=price_stars)]
+    
+    await callback.message.delete()
+    await callback.message.answer_invoice(
+        title="Публикация объявления",
+        description=f"{desc}.\nСтоимость: {price_stars} ⭐️",
+        payload=f"publish_listing_{callback.from_user.id}",
+        currency="XTR",
+        prices=prices,
+        provider_token="" # empty for Telegram Stars
+    )
+    await callback.answer()
+
+@router.pre_checkout_query(lambda query: query.invoice_payload.startswith("publish_listing_"))
+async def process_pre_checkout_query(pre_checkout_query: types.PreCheckoutQuery):
+    await pre_checkout_query.answer(ok=True)
+
+@router.message(F.successful_payment, lambda message: message.successful_payment.invoice_payload.startswith("publish_listing_"))
+async def process_successful_payment(message: types.Message, state: FSMContext):
+    data = await state.get_data()
+    photos = data.get("photos", [])
+    seller_type = data.get("seller_type", "individual")
     from db.base import async_session
     from db.crud.listing import create_listing
     from db.crud.user import get_user
@@ -246,7 +338,35 @@ async def confirm_listing_publish(callback: types.CallbackQuery, state: FSMConte
             listing_type=l_type,
             status="moderation"
         )
+        new_listing.seller_type = seller_type  # Устанавливаем seller_type
+        await session.commit()
         
+        # Referral Bonus Logic
+        if db_user and getattr(db_user, 'referrer_id', None):
+            ref_id = db_user.referrer_id
+            from sqlalchemy import update
+            from db.models.user import User
+            from db.crud.user import get_user_by_db_id
+            
+            await session.execute(
+                update(User).where(User.id == ref_id).values(referral_bonus=User.referral_bonus + 1)
+            )
+            db_user.referrer_id = None
+            await session.commit()
+            
+            ref_user = await get_user_by_db_id(session, ref_id)
+            if ref_user and ref_user.telegram_id:
+                try:
+                    await message.bot.send_message(
+                        ref_user.telegram_id,
+                        "🎁 <b>Бонус за друга!</b>\n\n"
+                        "Пользователь, которого вы пригласили, оплатил свое первое объявление.\n"
+                        "Вам начислен <b>+1 купон на бесплатное VIP-размещение</b> (поднятие в ТОП)!\n\n"
+                        "<i>Перейдите в Профиль -> Мои объявления, чтобы использовать его.</i>",
+                        parse_mode="HTML"
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to notify referrer {ref_id}: {e}")
     # Уведомляем админов
     from bot.handlers.admin import ADMIN_IDS
     from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton

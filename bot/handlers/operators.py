@@ -15,7 +15,8 @@ async def operators_menu(message: types.Message):
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🔍 Посмотреть операторов", callback_data="view_operators_0")],
-        [InlineKeyboardButton(text="➕ Разместить анкету (1000 ₽/год)", callback_data="pay_operator_listing")]
+        [InlineKeyboardButton(text="💳 Карта (1000 ₽/год)", callback_data="pay_operator_listing"),
+         InlineKeyboardButton(text="⭐️ Stars (500 ⭐️)", callback_data="pay_operator_xtr")]
     ])
 
     await message.answer(
@@ -37,7 +38,7 @@ async def show_operators(callback: types.CallbackQuery):
         # Пока будем искать все активные листинги с типом 'operator'
         result = await session.execute(
             select(Listing)
-            .options(selectinload(Listing.photos))
+            .options(selectinload(Listing.photos), selectinload(Listing.reviews))
             .where(Listing.listing_type == "operator")
             .where(Listing.status == "active")
         )
@@ -51,10 +52,15 @@ async def show_operators(callback: types.CallbackQuery):
     total = len(operators)
     start_idx = page * page_size
     operator = operators[start_idx]
+    
+    avg_rating = "Нет оценок"
+    if operator.reviews:
+        avg_rating = f"{sum(r.rating for r in operator.reviews) / len(operator.reviews):.1f} ⭐ ({len(operator.reviews)} отз.)"
 
     text = (
         f"🎬 <b>Оператор</b> ({page+1}/{total})\n\n"
-        f"👤 <b>{operator.title}</b>\n\n"
+        f"👤 <b>{operator.title}</b>\n"
+        f"⭐ <b>Рейтинг:</b> {avg_rating}\n\n"
         f"📝 <b>Услуги:</b>\n{operator.description}\n\n"
         f"🔗 <b>Портфолио:</b> {operator.contacts}\n"
     )
@@ -68,6 +74,7 @@ async def show_operators(callback: types.CallbackQuery):
         nav_buttons.append(InlineKeyboardButton(text="След. ➡️", callback_data=f"view_operators_{page+1}"))
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⭐️ Оценить специалиста", callback_data=f"rate_operator_{operator.id}")],
         nav_buttons,
         [InlineKeyboardButton(text="🔝 В главное меню", callback_data="back_to_main")]
     ])
@@ -138,3 +145,107 @@ async def check_operator_payment(callback: types.CallbackQuery, state: FSMContex
         await start_listing_create(callback, state)
     else:
         await callback.answer(f"Платеж еще не подтвержден. Статус: {status}", show_alert=True)
+
+@router.callback_query(F.data == "pay_operator_xtr")
+async def pay_operator_xtr_init(callback: types.CallbackQuery):
+    """Инициация оплаты Stars для размещения анкеты оператора"""
+    amount = 500
+    from aiogram.types import LabeledPrice
+    
+    await callback.message.answer_invoice(
+        title="Анкета оператора",
+        description="Размещение вашей анкеты оператора (1 год) в базе",
+        payload=f"pay_operator_xtr_{callback.from_user.id}",
+        provider_token="",  # Пустой токен для Telegram Stars
+        currency="XTR",
+        prices=[LabeledPrice(label="Анкета оператора", amount=amount)]
+    )
+    await callback.answer()
+
+@router.pre_checkout_query(lambda query: query.invoice_payload.startswith("pay_operator_xtr_"))
+async def pre_checkout_operator_xtr(pre_checkout_query: types.PreCheckoutQuery):
+    await pre_checkout_query.answer(ok=True)
+
+@router.message(F.successful_payment, lambda message: message.successful_payment.invoice_payload.startswith("pay_operator_xtr_"))
+async def process_operator_payment_xtr(message: types.Message, state: FSMContext):
+    """Проверка успешной оплаты Stars для анкеты оператора"""
+    await message.answer(
+        "✅ <b>Оплата Stars прошла успешно!</b>\n\n"
+        "Приступим к заполнению вашей анкеты.",
+        parse_mode="HTML"
+    )
+    from bot.handlers.listing_create import start_listing_create
+    await state.update_data(listing_type="operator", category_id=6) # 6 - Операторы
+    await start_listing_create(message, state)
+
+
+from aiogram.fsm.state import State, StatesGroup
+
+class OperatorReviewFlow(StatesGroup):
+    waiting_for_rating = State()
+    waiting_for_text = State()
+
+@router.callback_query(F.data.startswith("rate_operator_"))
+async def start_rate_operator(callback: types.CallbackQuery, state: FSMContext):
+    operator_id = int(callback.data.split("_")[2])
+    await state.update_data(operator_id=operator_id)
+    await state.set_state(OperatorReviewFlow.waiting_for_rating)
+    
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⭐ 1", callback_data="op_rate_1"),
+         InlineKeyboardButton(text="⭐⭐ 2", callback_data="op_rate_2"),
+         InlineKeyboardButton(text="⭐⭐⭐ 3", callback_data="op_rate_3")],
+        [InlineKeyboardButton(text="⭐⭐⭐⭐ 4", callback_data="op_rate_4"),
+         InlineKeyboardButton(text="⭐⭐⭐⭐⭐ 5", callback_data="op_rate_5")]
+    ])
+    await callback.message.edit_reply_markup(reply_markup=kb)
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("op_rate_"))
+async def process_rating(callback: types.CallbackQuery, state: FSMContext):
+    rating = float(callback.data.split("_")[2])
+    await state.update_data(rating=rating)
+    await state.set_state(OperatorReviewFlow.waiting_for_text)
+    
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+         [InlineKeyboardButton(text="Пропустить", callback_data="skip_op_review_text")]
+    ])
+    await callback.message.edit_text("Пожалуйста, напишите краткий текстовый отзыв об этом операторе или нажмите 'Пропустить':", reply_markup=kb)
+    await callback.answer()
+
+@router.callback_query(F.data == "skip_op_review_text")
+@router.message(OperatorReviewFlow.waiting_for_text)
+async def process_review_text(event, state: FSMContext):
+    data = await state.get_data()
+    operator_id = data.get("operator_id")
+    rating = data.get("rating")
+    
+    text = ""
+    if isinstance(event, types.Message):
+        text = event.text
+    
+    from db.models.review import Review
+    from db.models.user import User
+    
+    async with async_session() as session:
+        user_id = event.from_user.id
+        user = await session.scalar(select(User).where(User.telegram_id == user_id))
+        if user:
+            new_review = Review(
+                listing_id=operator_id,
+                author_id=user.id,
+                rating=rating,
+                text=text if text else None
+            )
+            session.add(new_review)
+            await session.commit()
+            
+    await state.clear()
+    
+    if isinstance(event, types.Message):
+        await event.answer("✅ Спасибо! Ваш отзыв об операторе успешно сохранен.")
+    else:
+        await event.message.edit_text("✅ Спасибо! Ваш отзыв об операторе успешно сохранен без текста.")
+        await event.answer()

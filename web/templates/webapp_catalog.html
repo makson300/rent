@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TMA Каталог</title>
+    <!-- Telegram WebApp JS -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--tg-theme-bg-color, #f3f4f6);
+            color: var(--tg-theme-text-color, #111827);
+            margin: 0;
+            padding: 0;
+        }
+        .card {
+            background-color: var(--tg-theme-secondary-bg-color, #ffffff);
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+            border: 1px solid rgba(0,0,0,0.05);
+            transition: transform 0.2s ease;
+        }
+        .card:active {
+            transform: scale(0.98);
+        }
+        .text-hint {
+            color: var(--tg-theme-hint-color, #6b7280);
+        }
+        .btn-primary {
+            background-color: var(--tg-theme-button-color, #3b82f6);
+            color: var(--tg-theme-button-text-color, #ffffff);
+            border-radius: 8px;
+            font-weight: 600;
+            text-align: center;
+        }
+        .badge {
+            background-color: rgba(59, 130, 246, 0.1);
+            color: var(--tg-theme-button-color, #3b82f6);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-premium {
+            background-color: rgba(245, 158, 11, 0.1);
+            color: #d97706;
+        }
+    </style>
+</head>
+<body class="pb-10">
+
+    <div class="sticky top-0 z-10 p-4" style="background-color: var(--tg-theme-bg-color, #f3f4f6);">
+        <h1 class="text-2xl font-bold flex items-center justify-between">
+            <span>🛒 Маркетплейс</span>
+        </h1>
+        <p class="text-sm text-hint mt-1">Оборудование и услуги</p>
+    </div>
+
+    <div class="px-4 grid grid-cols-2 gap-4" id="listings-container">
+        {% for listing in listings %}
+        <div class="card flex flex-col" onclick="viewListing({{ listing.id }})">
+            <div class="relative w-full aspect-square bg-gray-200">
+                {% if listing.photos and listing.photos|length > 0 %}
+                    <img src="https://tg-files-proxy.example.com/file/{{ listing.photos[0].photo_id }}" alt="Photo" class="w-full h-full object-cover">
+                {% else %}
+                    <div class="w-full h-full flex items-center justify-center text-4xl bg-gray-100">🚁</div>
+                {% endif %}
+                
+                {% if listing.is_promoted %}
+                <div class="absolute top-2 right-2 badge badge-premium px-2 py-1 flex items-center gap-1 shadow-sm">
+                    ⭐️ ТОП
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="p-3 flex-1 flex flex-col">
+                <div class="mb-1">
+                    {% if listing.listing_type == 'sale' %}
+                        <span class="badge">Продажа</span>
+                    {% elif listing.listing_type == 'operator' %}
+                        <span class="badge" style="background-color: rgba(16, 185, 129, 0.1); color: #059669;">Оператор</span>
+                    {% else %}
+                        <span class="badge" style="background-color: rgba(139, 92, 246, 0.1); color: #7c3aed;">Аренда</span>
+                    {% endif %}
+                </div>
+                
+                <h3 class="font-bold text-sm leading-tight mb-1 line-clamp-2 h-10">{{ listing.title }}</h3>
+                <p class="text-xs text-hint mb-2">📍 {{ listing.city }}</p>
+                
+                <div class="mt-auto flex items-end justify-between">
+                    <div class="font-bold text-sm text-blue-600 truncate mr-2">{{ listing.price_list.split(',')[0] }}</div>
+                    <button onclick="sendDataAction('buy', {{ listing.id }}); event.stopPropagation();" class="shrink-0 btn-primary w-8 h-8 flex items-center justify-center rounded-full shadow-sm">
+                        {% if listing.listing_type == 'sale' %}Купить{% else %}Взять{% endif %}
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <script>
+        // Init Telegram WebApp
+        let tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.ready();
+
+        // Optional theme config 
+        if (tg.themeParams.bg_color) {
+            document.body.style.backgroundColor = tg.themeParams.bg_color;
+        }
+
+        // Action when user clicks main card area -> Just open bot deep link maybe?
+        // Or send data to bot to show full info
+        function viewListing(id) {
+            // Because sendData is limited, we can also use openTelegramLink to send a start parameter
+            tg.sendData(JSON.stringify({action: "view", id: id}));
+        }
+
+        // Action when user clicks the primary action button
+        function sendDataAction(action_type, id) {
+            tg.showConfirm(`Вы хотите открыть карточку оборудования #${id}?`, function(result) {
+                if (result) {
+                    tg.sendData(JSON.stringify({action: "view", id: id}));
+                }
+            });
+        }
+    </script>
+</body>
+</html>

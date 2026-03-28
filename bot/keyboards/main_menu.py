@@ -4,7 +4,9 @@ from aiogram.types import (
     ReplyKeyboardRemove,
     InlineKeyboardMarkup,
     InlineKeyboardButton,
+    WebAppInfo
 )
+from bot.config import WEBAPP_URL
 
 
 def get_main_menu() -> ReplyKeyboardMarkup:
@@ -24,14 +26,20 @@ def get_main_menu() -> ReplyKeyboardMarkup:
             ],
             [
                 KeyboardButton(text="📋 Мои объявления"),
+                KeyboardButton(text="📄 Договор ИИ"),
+            ],
+            [
                 KeyboardButton(text="👤 Профиль"),
             ],
             [
-                KeyboardButton(text="📜 Правила и условия"),
-                KeyboardButton(text="🆘 ЧП"),
+                KeyboardButton(text="🗺 Карта (TMA)", web_app=WebAppInfo(url=f"{WEBAPP_URL}/map")),
+                KeyboardButton(text="🛍 Каталог (TMA)", web_app=WebAppInfo(url=f"{WEBAPP_URL}/webapp/catalog")),
             ],
             [
+                KeyboardButton(text="🆘 ЧП"),
                 KeyboardButton(text="🎬 Операторы"),
+            ],
+            [
                 KeyboardButton(text="📩 Обратная связь"),
             ],
 

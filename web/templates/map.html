@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Карта дронов и операторов</title>
+    <!-- Подключаем Телеграм WebApp API -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <!-- Подключаем Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--tg-theme-bg-color, #1e293b);
+            color: var(--tg-theme-text-color, #f8fafc);
+        }
+        #map {
+            width: 100%;
+            height: 100vh;
+        }
+        
+        /* Стили кастомных маркеров */
+        .custom-div-icon {
+            background: none;
+            border: none;
+        }
+        .marker-body {
+            background-color: #fff;
+            border: 2px solid white;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            position: relative;
+        }
+        .marker-body::after {
+            content: '';
+            position: absolute;
+            bottom: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-width: 6px 5px 0;
+            border-style: solid;
+            border-color: #fff transparent transparent transparent;
+        }
+        
+        /* Цвета обводки в зависимости от типа */
+        .type-rental { border-color: #4ade80; }
+        .type-sale { border-color: #38bdf8; }
+        .type-operator { border-color: #facc15; }
+        .type-sponsored { 
+            border-color: #fbbf24;
+            box-shadow: 0 0 12px rgba(251, 191, 36, 0.8);
+        }
+        .sponsored-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            color: #fff;
+            font-size: 10px;
+            font-weight: bold;
+            padding: 2px 5px;
+            border-radius: 4px;
+            margin-left: 5px;
+            vertical-align: middle;
+            text-shadow: 0 1px 1px rgba(0,0,0,0.2);
+        }
+        .type-emergency { 
+            border-color: #f87171; 
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(248, 113, 113, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0); }
+        }
+
+        .leaflet-popup-content-wrapper {
+            background: var(--tg-theme-bg-color, #fff);
+            color: var(--tg-theme-text-color, #000);
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .leaflet-popup-tip {
+            background: var(--tg-theme-bg-color, #fff);
+        }
+        .popup-title {
+            font-weight: bold;
+            font-size: 15px;
+            margin-bottom: 5px;
+        }
+        .popup-price {
+            color: var(--tg-theme-hint-color, #64748b);
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+        .popup-btn {
+            background: var(--tg-theme-button-color, #3b82f6);
+            color: var(--tg-theme-button-text-color, #fff);
+            border: none;
+            border-radius: 8px;
+            padding: 8px 12px;
+            width: 100%;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <script>
+        // Инициализация WebApp
+        const tg = window.Telegram.WebApp;
+        tg.expand(); // Расширяем апп на весь экран
+        
+        // Создаем карту (Центр на Москве по умолчанию)
+        const map = L.map('map', {zoomControl: false}).setView([55.7558, 37.6173], 5);
+
+        // Используем темную или светлую карту в зависимости от темы ТГ
+        const isDark = tg.colorScheme === 'dark' || document.body.style.backgroundColor === 'rgb(30, 41, 59)';
+        const tileUrl = isDark ? 
+            'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png' : 
+            'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+            
+        L.tileLayer(tileUrl, {
+            attribution: '&copy; OpenStreetMap & RentBot'
+        }).addTo(map);
+        
+        // Загружаем данные c API
+        fetch('/api/map_data')
+            .then(res => res.json())
+            .then(data => {
+                const points = data.points;
+                
+                points.forEach(p => {
+                    // Иконка в зависимости от типа
+                    let iconText = "📍";
+                    let cssClass = "type-rental";
+                    
+                    if (p.marker_type === "rental") { iconText = "📦"; cssClass = "type-rental"; }
+                    if (p.marker_type === "sale") { iconText = "💰"; cssClass = "type-sale"; }
+                    if (p.marker_type === "operator") { iconText = "🚁"; cssClass = "type-operator"; }
+                    if (p.marker_type === "emergency") { iconText = "🚨"; cssClass = "type-emergency"; }
+                    
+                    if (p.is_sponsored) {
+                        iconText = "⭐️";
+                        cssClass += " type-sponsored";
+                    }
+                    
+                    const customIcon = L.divIcon({
+                        className: 'custom-div-icon',
+                        html: `<div class="marker-body ${cssClass}">${iconText}</div>`,
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 38],
+                        popupAnchor: [0, -38]
+                    });
+                    
+                    const marker = L.marker([p.lat, p.lon], {icon: customIcon}).addTo(map);
+                    
+                    const titleHtml = p.is_sponsored 
+                        ? `<div class="popup-title">${p.title} <span class="sponsored-badge">VIP</span></div>`
+                        : `<div class="popup-title">${p.title}</div>`;
+
+                    const popupContent = `
+                        ${titleHtml}
+                        <div class="popup-price">${p.price}</div>
+                        <div style="margin-bottom: 10px; font-size: 13px;">👤 Владелец: ${p.owner}</div>
+                        <button class="popup-btn" onclick="openItem(${p.id}, '${p.marker_type}')">
+                            ${p.marker_type === 'emergency' ? 'Участвовать в ЧС' : 'Подробнее'}
+                        </button>
+                    `;
+                    
+                    marker.bindPopup(popupContent);
+                });
+            })
+            .catch(console.error);
+            
+        function openItem(id, type) {
+            // В идеале мы передаем данные боту, чтобы он открыл карточку
+            if (type === 'emergency') {
+                tg.sendData(JSON.stringify({action: "view_emergency", id: id}));
+            } else {
+                tg.sendData(JSON.stringify({action: "view_listing", id: id}));
+            }
+            tg.close();
+        }
+    </script>
+</body>
+</html>

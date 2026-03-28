@@ -1,0 +1,10 @@
+.env
+__pycache__
+*.pyc
+.git
+.venv
+venv/
+env/
+rentbot.db
+rentbot.db-journal
+.gemini

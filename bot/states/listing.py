@@ -4,6 +4,7 @@ class ListingCreateStates(StatesGroup):
     """Пошаговая форма создания объявления"""
     waiting_for_city = State()
     waiting_for_category = State()
+    waiting_for_seller_type = State()
     waiting_for_title = State()
     waiting_for_description = State()
     waiting_for_deposit = State()

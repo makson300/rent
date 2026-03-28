@@ -5,6 +5,13 @@ load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./rentbot.db")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+WEBAPP_URL = os.getenv("WEBAPP_URL", "https://your-domain.com")
+
+REDIS_URL = os.getenv("REDIS_URL")
+USE_WEBHOOK = os.getenv("USE_WEBHOOK", "False").lower() == "true"
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+WEBHOOK_PATH = "/webhook"
 
 # Telegram ID администраторов (через запятую в .env)
 _admin_ids_raw = os.getenv("ADMIN_IDS", "")

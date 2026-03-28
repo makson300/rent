@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import String, Integer, ForeignKey, Text, DateTime
+from sqlalchemy import String, Integer, ForeignKey, Text, DateTime, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from db.base import Base
 
@@ -25,12 +25,21 @@ class Listing(Base):
     
     # rental / sale
     listing_type: Mapped[str] = mapped_column(String(20), default="rental")
+    # individual / store
+    seller_type: Mapped[str] = mapped_column(String(20), default="individual")
     # if it's from a partner
     partner_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    
+    # VIP / B2B Sponsorship
+    is_sponsored: Mapped[bool] = mapped_column(Boolean, default=False)
     
     # status: moderation / active / rejected / expired
     status: Mapped[str] = mapped_column(String(20), default="moderation")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    # VIP promotions functionality
+    from sqlalchemy import Boolean
+    is_promoted: Mapped[bool] = mapped_column(Boolean, default=False)
 
     photos: Mapped[list["ListingPhoto"]] = relationship(
         "ListingPhoto", back_populates="listing", cascade="all, delete-orphan"

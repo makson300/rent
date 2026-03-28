@@ -15,6 +15,7 @@ from db.base import async_session, init_db
 from db.models.user import User
 from db.models.listing import Listing
 from db.models.education import EducationApplication
+from db.models.emergency import EmergencyAlert
 
 # Configure logging
 logging.basicConfig(
@@ -46,6 +47,22 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"message": "Internal Server Error", "detail": str(exc)},
     )
 
+@app.post("/webhook")
+async def telegram_webhook(request: Request):
+    """Прием обновлений от Telegram (Webhook)"""
+    try:
+        from aiogram.types import Update
+        bot = request.app.state.bot
+        dp = request.app.state.dp
+        
+        data = await request.json()
+        update = Update.model_validate(data, context={"bot": bot})
+        await dp.feed_update(bot, update)
+        return {"ok": True}
+    except Exception as e:
+        logger.error(f"Error processing webhook: {e}")
+        return {"ok": False, "error": str(e)}
+
 @app.get("/")
 async def home(request: Request):
     try:
@@ -61,6 +78,9 @@ async def home(request: Request):
             new_feedback = await session.scalar(
                 select(func.count()).select_from(Feedback).where(Feedback.status == "new")
             )
+            total_emergencies = await session.scalar(
+                select(func.count()).select_from(EmergencyAlert)
+            )
             
         return templates.TemplateResponse(
             request=request, name="index.html", context={
@@ -68,7 +88,8 @@ async def home(request: Request):
                     "users_count": users_count or 0, 
                     "active_listings": listings_count or 0,
                     "new_applications": new_apps or 0,
-                    "new_feedback": new_feedback or 0
+                    "new_feedback": new_feedback or 0,
+                    "total_emergencies": total_emergencies or 0
                 }
             }
         )
@@ -176,6 +197,150 @@ async def applications(request: Request):
     except Exception as e:
         logger.error(f"Error rendering applications: {e}", exc_info=True)
         raise e
+
+@app.get("/emergencies")
+async def emergencies_page(request: Request):
+    """Страница Центра ЧС"""
+    try:
+        async with async_session() as session:
+            from sqlalchemy.orm import selectinload
+            # Загружаем с данными репортера
+            result = await session.execute(
+                select(EmergencyAlert).options(selectinload(EmergencyAlert.reporter)).order_by(EmergencyAlert.created_at.desc())
+            )
+            emergencies = result.scalars().all()
+            
+        return templates.TemplateResponse(
+            request=request, name="emergencies.html", context={"emergencies": emergencies}
+        )
+    except Exception as e:
+        logger.error(f"Error rendering emergencies: {e}", exc_info=True)
+        raise e
+
+@app.post("/emergencies/{alert_id}/approve")
+async def approve_emergency_web(alert_id: int):
+    """Одобрение ЧС (интерфейс)"""
+    try:
+        async with async_session() as session:
+            from sqlalchemy import update
+            await session.execute(
+                update(EmergencyAlert).where(EmergencyAlert.id == alert_id).values(status="approved")
+            )
+            await session.commit()
+            # В идеале здесь должен быть вызов функции массовой рассылки операторам
+            # но пока ограничимся сменой статуса в БД через ВЕБ интерфейс.
+        return RedirectResponse(url="/emergencies", status_code=303)
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+@app.post("/emergencies/{alert_id}/reject")
+async def reject_emergency_web(alert_id: int):
+    """Отклонение ЧС"""
+    try:
+        async with async_session() as session:
+            from sqlalchemy import update
+            await session.execute(
+                update(EmergencyAlert).where(EmergencyAlert.id == alert_id).values(status="rejected")
+            )
+            await session.commit()
+        return RedirectResponse(url="/emergencies", status_code=303)
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+import random
+
+CITY_COORDS = {
+    "Москва": [55.7558, 37.6173],
+    "Санкт-Петербург": [59.9343, 30.3351],
+    "Казань": [55.7963, 49.1088],
+    "Новосибирск": [55.0302, 82.9204],
+    "Екатеринбург": [56.8389, 60.6057],
+    "Нижний Новгород": [56.3269, 44.0059],
+    "Краснодар": [45.0355, 38.9753],
+    "Сочи": [43.5855, 39.7231],
+    "Ростов-на-Дону": [47.2220, 39.7196],
+}
+
+@app.get("/map")
+async def map_page(request: Request):
+    """Страница TMA-Карты"""
+    return templates.TemplateResponse(request=request, name="map.html", context={})
+
+@app.get("/webapp/catalog")
+async def webapp_catalog(request: Request):
+    """Страница TMA-Каталога для Telegram Mini App"""
+    try:
+        async with async_session() as session:
+            from sqlalchemy.orm import selectinload
+            result = await session.execute(
+                select(Listing).where(Listing.status == "active").options(selectinload(Listing.photos)).order_by(Listing.created_at.desc())
+            )
+            listings = result.scalars().all()
+            
+        return templates.TemplateResponse(
+            request=request, name="webapp_catalog.html", context={"listings": listings}
+        )
+    except Exception as e:
+        logger.error(f"Error rendering webapp catalog: {e}", exc_info=True)
+        raise e
+
+@app.get("/api/map_data")
+async def map_data_api():
+    """Возвращает точки для карты"""
+    async with async_session() as session:
+        # Load active listings
+        from sqlalchemy.orm import selectinload
+        result = await session.execute(
+            select(Listing).where(Listing.status == 'active').options(selectinload(Listing.user))
+        )
+        listings = result.scalars().all()
+        
+        # Load active emergencies
+        em_res = await session.execute(
+            select(EmergencyAlert).where(EmergencyAlert.status == 'approved')
+        )
+        emergencies = em_res.scalars().all()
+        
+    points = []
+    
+    for lst in listings:
+        base_coords = CITY_COORDS.get(lst.city, CITY_COORDS["Москва"])
+        # Add a tiny random offset to avoid overlapping identical pins
+        lat = base_coords[0] + (random.random() - 0.5) * 0.05
+        lon = base_coords[1] + (random.random() - 0.5) * 0.05
+        
+        cat_map = {1: "rental", 2: "sale", 6: "operator"}
+        m_type = cat_map.get(lst.category_id, "other")
+        
+        points.append({
+            "type": "listing",
+            "id": lst.id,
+            "lat": lat,
+            "lon": lon,
+            "title": lst.title,
+            "price": lst.price_list[:50] + ("..." if len(lst.price_list)>50 else ""),
+            "owner": lst.user.first_name,
+            "marker_type": m_type,
+            "is_sponsored": getattr(lst, "is_sponsored", False)
+        })
+        
+    for em in emergencies:
+        base_coords = CITY_COORDS.get(em.city, CITY_COORDS["Москва"])
+        lat = base_coords[0] + (random.random() - 0.5) * 0.02
+        lon = base_coords[1] + (random.random() - 0.5) * 0.02
+        points.append({
+            "type": "emergency",
+            "id": em.id,
+            "lat": lat,
+            "lon": lon,
+            "title": "🚨 ЭКСТРЕННЫЙ СБОР",
+            "price": em.problem_type,
+            "owner": "АДМИНИСТРАЦИЯ",
+            "marker_type": "emergency"
+        })
+
+    return JSONResponse(content={"points": points})
+
 
 if __name__ == "__main__":
     # Use the filename "dashboard" for uvicorn string reference

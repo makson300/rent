@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import BigInteger, String, Boolean, DateTime
+from sqlalchemy import BigInteger, String, Boolean, DateTime, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from db.base import Base
 from typing import TYPE_CHECKING
@@ -21,10 +21,13 @@ class User(Base):
     username: Mapped[str | None] = mapped_column(String(100), nullable=True)
     user_type: Mapped[str] = mapped_column(String(20), default="private") # private / company
     ad_slots: Mapped[int] = mapped_column(default=0)
+    is_banned: Mapped[bool] = mapped_column(Boolean, default=False)
+    volunteer_rescues: Mapped[int] = mapped_column(default=0)
+    referrer_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    referral_bonus: Mapped[int] = mapped_column(default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # Связи
     listings: Mapped[list["Listing"]] = relationship("Listing", back_populates="user")
     feedbacks: Mapped[list["Feedback"]] = relationship("Feedback", back_populates="user")
     reviews_received: Mapped[list["Review"]] = relationship("Review", foreign_keys="Review.target_user_id", back_populates="target_user")
-

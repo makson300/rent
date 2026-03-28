@@ -178,6 +178,7 @@
         <a href="/applications" class="nav-item">📝 Заявки</a>
         <a href="/listings" class="nav-item">📦 Объявления</a>
         <a href="/feedback" class="nav-item">📩 Обратная связь</a>
+        <a href="/emergencies" class="nav-item" style="color: #f87171;">🚨 Центр ЧС</a>
         <a href="https://t.me/SKY_RENT_HUB_BOT" class="nav-item" target="_blank">🤖 Открыть бота</a>
 
     </div>
@@ -209,6 +210,11 @@
                 <div class="card-value">{{ stats.new_feedback }}</div>
                 <div class="card-trend" style="color: var(--accent-pink);">📩 Предложения</div>
             </div>
+            <div class="card" style="border-color: #f87171;">
+                <span class="card-label">Вызовы ЧС</span>
+                <div class="card-value">{{ stats.total_emergencies }}</div>
+                <div class="card-trend" style="color: #f87171;">🚨 Экстренно</div>
+            </div>
 
         </div>
 
@@ -217,6 +223,7 @@
             <div style="display: flex; gap: 20px; margin-top: 20px;">
                 <a href="/applications" class="glass-btn">Проверить анкеты</a>
                 <a href="/feedback" class="glass-btn" style="background: var(--accent-pink); color: #fff;">Ответить на фидбек</a>
+                <a href="/emergencies" class="glass-btn" style="background: #ef4444; color: #fff;">Модерация ЧС</a>
                 <a href="/listings" class="glass-btn" style="background: var(--glass); color: #fff; border: 1px solid var(--glass-border);">Модерировать посты</a>
             </div>
 
