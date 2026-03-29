@@ -12,7 +12,7 @@ from bot.handlers import (
     search_router, seller_profile_router, operators_router,
     support_router, emergency_router, admin_emergency_router,
     admin_advisor_router, booking_router, contract_router,
-    job_router, job_hiring_router
+    job_router, job_hiring_router, orvd_router
 )
 from db.base import init_db
 
@@ -76,6 +76,7 @@ async def main():
     dp.include_router(contract_router)
     dp.include_router(job_router)
     dp.include_router(job_hiring_router)
+    dp.include_router(orvd_router)
 
     # Установка команд меню
     from bot.commands import set_commands

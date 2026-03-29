@@ -40,6 +40,7 @@ async def show_profile(message: types.Message):
 
     kb_list = [
         [InlineKeyboardButton(text="📋 Мои объявления", callback_data="my_listings_list")],
+        [InlineKeyboardButton(text="🛩 Моя Аэронавигация (ИВП)", callback_data="my_orvd")],
         [InlineKeyboardButton(text="🎁 Пригласить друга", callback_data="invite_friend")]
     ]
     

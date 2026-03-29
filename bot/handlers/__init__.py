@@ -50,6 +50,7 @@ from bot.handlers.booking import router as booking_router
 from bot.handlers.contract import router as contract_router
 from bot.handlers.job import router as job_router
 from bot.handlers.job_hiring import router as job_hiring_router
+from bot.handlers.orvd import router as orvd_router
 
 __all__ = [
     "start_router", "profile_router", "menu_router", 
@@ -59,5 +60,5 @@ __all__ = [
     "search_router", "seller_profile_router", "operators_router",
     "support_router", "emergency_router", "admin_emergency_router",
     "admin_advisor_router", "booking_router", "contract_router",
-    "job_router", "job_hiring_router"
+    "job_router", "job_hiring_router", "orvd_router"
 ]

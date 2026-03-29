@@ -33,6 +33,7 @@ async def init_db():
     from db.models.log import ModerationLog
     from db.models.job import Job
     from db.models.job_response import JobResponse
+    from db.models.flight_plan import FlightPlan
     from sqlalchemy import select
     
     async with async_session() as session:

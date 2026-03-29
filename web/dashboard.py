@@ -786,6 +786,79 @@ async def public_jobs_api(
             
     return JSONResponse(content={"ok": True, "jobs": data})
 
+from pydantic import BaseModel
+
+class FlightPlanCreate(BaseModel):
+    user_id: int # Temporary passed from client until full JWT is unified
+    coords: str
+    radius: str
+    alt_min: str
+    alt_max: str
+    time_start: str
+    time_end: str
+    task_desc: str
+    operator_name: str
+    phone: str
+    shr_code: str
+    is_emergency: bool = False
+
+@app.post("/api/v1/flight_plans")
+async def create_flight_plan(plan: FlightPlanCreate):
+    """Сохранение плана полетов из интерфейса Web"""
+    try:
+        from db.models.flight_plan import FlightPlan
+        async with async_session() as session:
+            new_plan = FlightPlan(
+                user_id=plan.user_id,
+                coords=plan.coords,
+                radius=plan.radius,
+                alt_min=plan.alt_min,
+                alt_max=plan.alt_max,
+                time_start=plan.time_start,
+                time_end=plan.time_end,
+                task_desc=plan.task_desc,
+                operator_name=plan.operator_name,
+                phone=plan.phone,
+                shr_code=plan.shr_code,
+                is_emergency=plan.is_emergency,
+                status="pending"
+            )
+            session.add(new_plan)
+            await session.commit()
+            
+            # TODO: trigger telegram notification to Admin/Moderator here
+            
+            return JSONResponse(content={"ok": True, "flight_plan_id": new_plan.id})
+    except Exception as e:
+        logger.error(f"Error creating flight plan: {e}")
+        return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
+
+@app.get("/api/v1/flight_plans/{user_id}")
+async def get_flight_plans(user_id: int):
+    """Получить список планов пользователя"""
+    try:
+        from db.models.flight_plan import FlightPlan
+        async with async_session() as session:
+            result = await session.execute(
+                select(FlightPlan).where(FlightPlan.user_id == user_id).order_by(FlightPlan.created_at.desc())
+            )
+            plans = result.scalars().all()
+            
+            data = []
+            for p in plans:
+                data.append({
+                    "id": p.id,
+                    "task_desc": p.task_desc,
+                    "coords": p.coords,
+                    "status": p.status,
+                    "is_emergency": p.is_emergency,
+                    "created_at": p.created_at.isoformat()
+                })
+            return JSONResponse(content={"ok": True, "flight_plans": data})
+    except Exception as e:
+        logger.error(f"Error fetching flight plans: {e}")
+        return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
+
 
 if __name__ == "__main__":
     # Use the filename "dashboard" for uvicorn string reference

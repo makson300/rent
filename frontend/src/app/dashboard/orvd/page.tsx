@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Copy, Navigation, CheckCircle2, ShieldAlert } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Copy, Navigation, CheckCircle2, ShieldAlert, Save } from "lucide-react";
 
 export default function OrvdGenerator() {
   const [copied, setCopied] = useState(false);
@@ -29,10 +29,56 @@ export default function OrvdGenerator() {
 ТЕЛ: ${formData.phone})`;
   };
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(generateTemplate());
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [userId, setUserId] = useState<number | null>(null);
+
+  useEffect(() => {
+    // Get user id from localStorage session if possible
+    const userStr = localStorage.getItem("skyrent_user");
+    if (userStr) {
+      try {
+        const u = JSON.parse(userStr);
+        setUserId(u.id);
+      } catch (e) {}
+    }
+  }, []);
+
+  const handleCopyAndSave = async () => {
+    const shr_code = generateTemplate();
+    navigator.clipboard.writeText(shr_code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+
+    if (userId) {
+      setIsSubmitting(true);
+      try {
+        await fetch("http://127.0.0.1:8000/api/v1/flight_plans", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: userId,
+            coords: formData.coords,
+            radius: formData.radius,
+            alt_min: formData.altMin,
+            alt_max: formData.altMax,
+            time_start: formData.timeStart,
+            time_end: formData.timeEnd,
+            task_desc: formData.task,
+            operator_name: formData.operatorName,
+            phone: formData.phone,
+            shr_code: shr_code,
+            is_emergency: false,
+          })
+        });
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+      } catch (e) {
+        console.error("Failed to save plan", e);
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
   };
 
   return (
@@ -173,24 +219,31 @@ export default function OrvdGenerator() {
               {generateTemplate()}
             </pre>
 
-            <button 
-              onClick={handleCopy}
-              className={`mt-6 w-full flex justify-center items-center py-3 px-4 border rounded-xl font-medium transition-all relative z-10 ${
-                copied 
-                  ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/20' 
-                  : 'bg-indigo-600 border-indigo-500 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-500/20'
-              }`}
-            >
-              {copied ? (
-                <>
-                  <CheckCircle2 className="w-5 h-5 mr-2" /> Скопировано
-                </>
-              ) : (
-                <>
-                  <Copy className="w-5 h-5 mr-2" /> Скопировать для SPPI
-                </>
+            <div className="flex flex-col gap-3 mt-6">
+              <button 
+                onClick={handleCopyAndSave}
+                disabled={isSubmitting}
+                className={`w-full flex justify-center items-center py-3 px-4 rounded-xl font-medium transition-all ${
+                  copied 
+                    ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' 
+                    : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-500/20'
+                } relative z-10 disabled:opacity-50`}
+              >
+                {copied ? (
+                  <>
+                    <CheckCircle2 className="w-5 h-5 mr-2" /> Скопировано и Сохранено
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-5 h-5 mr-2" /> Отправить в ОрВД
+                  </>
+                )}
+              </button>
+              
+              {saveSuccess && (
+                <p className="text-emerald-400 text-sm text-center font-medium">✅ Заявка сохранена в базе (Статус: Ожидание)</p>
               )}
-            </button>
+            </div>
           </div>
         </div>
 
