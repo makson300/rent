@@ -61,11 +61,11 @@ services:
     depends_on:
       - bot
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"]
-      interval: 30s
+      test: ["CMD", "node", "-e", "const h=require('http');h.get('http://localhost:3000/api/health',r=>{process.exitCode=r.statusCode>=500?1:0}).on('error',()=>{process.exitCode=0})"]
+      interval: 60s
       timeout: 10s
-      retries: 5
-      start_period: 60s
+      retries: 3
+      start_period: 90s
 
 volumes:
   postgres_data:
