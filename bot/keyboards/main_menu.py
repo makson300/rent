@@ -26,7 +26,11 @@ def get_main_menu() -> ReplyKeyboardMarkup:
             ],
             [
                 KeyboardButton(text="📋 Мои объявления"),
+                KeyboardButton(text="🚁 Мои задачи"),
+            ],
+            [
                 KeyboardButton(text="📄 Договор ИИ"),
+                KeyboardButton(text="👤 Профиль"),
             ],
             [
                 KeyboardButton(text="👤 Профиль"),
@@ -41,8 +45,8 @@ def get_main_menu() -> ReplyKeyboardMarkup:
             ],
             [
                 KeyboardButton(text="📩 Обратная связь"),
+                KeyboardButton(text="📝 Разместить Вакансию"),
             ],
-
         ],
         resize_keyboard=True,
     )

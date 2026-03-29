@@ -13,31 +13,40 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 router = Router()
 logger = logging.getLogger(__name__)
 
-# Список ID администраторов (из конфига и жестко заданные)
-ADMIN_IDS = [150190533, 506450098] 
-ADMIN_USERNAMES = ["vmandco"]
-
-def is_admin(user_id: int, username: str | None = None) -> bool:
+async def get_user_role(session, user_id: int, username: str | None = None) -> str:
     from bot.config import ADMIN_IDS as CONFIG_ADMIN_IDS
     if user_id in ADMIN_IDS or user_id in CONFIG_ADMIN_IDS:
-        return True
-    if username and username.lower().lstrip("@") in ADMIN_USERNAMES:
-        return True
-    return False
+        return "admin"
+    if username and username.lower().lstrip("@") in [u.lower() for u in ADMIN_USERNAMES]:
+        return "admin"
+    from db.crud.user import get_user
+    u = await get_user(session, user_id)
+    if not u:
+        return "user"
+    if getattr(u, "is_admin", False):
+        return "admin"
+    if getattr(u, "is_moderator", False):
+        return "moderator"
+    return "user"
 
 @router.message(Command("me"))
 async def cmd_me(message: types.Message):
     """Диагностика ID и прав"""
-    status = "✅ АДМИН" if is_admin(message.from_user.id, message.from_user.username) else "❌ Покупатель"
-    await message.answer(f"🆔 Ваш ID: <code>{message.from_user.id}</code>\n🔑 Статус: {status}", parse_mode="HTML")
+    async with async_session() as session:
+        role = await get_user_role(session, message.from_user.id, message.from_user.username)
+        
+    status = "✅ АДМИН" if role == "admin" else ("🔰 МОДЕРАТОР" if role == "moderator" else "❌ Пользователь")
+    await message.answer(f"🆔 Ваш ID: <code>{message.from_user.id}</code>\n🔑 Роль: {status}", parse_mode="HTML")
 
 @router.message(Command("ban"))
 async def ban_user_cmd(message: types.Message):
     """Бан пользователя по Telegram ID. Использование: /ban 123456789"""
-    if not is_admin(message.from_user.id, message.from_user.username):
-        return
-        
-    args = message.text.split()
+    async with async_session() as session:
+        role = await get_user_role(session, message.from_user.id, message.from_user.username)
+        if role != "admin":
+            return
+            
+        args = message.text.split()
     if len(args) < 2 or not args[1].isdigit():
         await message.answer("⚠️ Использование: `/ban <telegram_id>`", parse_mode="Markdown")
         return
@@ -55,10 +64,12 @@ async def ban_user_cmd(message: types.Message):
 @router.message(Command("unban"))
 async def unban_user_cmd(message: types.Message):
     """Разбан пользователя по Telegram ID. Использование: /unban 123456789"""
-    if not is_admin(message.from_user.id, message.from_user.username):
-        return
-        
-    args = message.text.split()
+    async with async_session() as session:
+        role = await get_user_role(session, message.from_user.id, message.from_user.username)
+        if role != "admin":
+            return
+            
+        args = message.text.split()
     if len(args) < 2 or not args[1].isdigit():
         await message.answer("⚠️ Использование: `/unban <telegram_id>`", parse_mode="Markdown")
         return
@@ -75,27 +86,65 @@ async def unban_user_cmd(message: types.Message):
 
 
 
+@router.message(Command("add_mod"))
+async def cmd_add_mod(message: types.Message):
+    async with async_session() as session:
+        role = await get_user_role(session, message.from_user.id, message.from_user.username)
+        if role != "admin": return
+        args = message.text.split()
+        if len(args) < 2:
+            await message.answer("Использование: /add_mod <@username или ID>")
+            return
+        
+        target = args[1]
+        t_id, t_user = (int(target), None) if target.isdigit() else (None, target)
+        from db.crud.user import set_user_role
+        succ, msg = await set_user_role(session, t_id, t_user, "moderator", True)
+        await message.answer(msg)
+
+@router.message(Command("del_mod"))
+async def cmd_del_mod(message: types.Message):
+    async with async_session() as session:
+        role = await get_user_role(session, message.from_user.id, message.from_user.username)
+        if role != "admin": return
+        args = message.text.split()
+        if len(args) < 2: return
+        target = args[1]
+        t_id, t_user = (int(target), None) if target.isdigit() else (None, target)
+        from db.crud.user import set_user_role
+        succ, msg = await set_user_role(session, t_id, t_user, "moderator", False)
+        await message.answer(msg)
+
 @router.message(Command("admin"))
 async def admin_main(message: types.Message):
     """Главный вход в админку"""
-    if not is_admin(message.from_user.id, message.from_user.username):
-        await message.answer("⛔️ У вас нет прав доступа к этой команде.")
+    async with async_session() as session:
+        role = await get_user_role(session, message.from_user.id, message.from_user.username)
+        
+    if role not in ("admin", "moderator"):
+        await message.answer("⛔️ У вас нет прав доступа.")
         return
 
-    
-    # Auto-add admin ID if not present
-    if message.from_user.id not in ADMIN_IDS:
-        ADMIN_IDS.append(message.from_user.id)
-        logger.info(f"Added new administrator ID: {message.from_user.id} (@{message.from_user.username})")
+    import secrets
+    magic_token = secrets.token_urlsafe(32)
+    # Идемпотентно сохраняем через API-вызов в Веб Дашборде (так как бот и веб в одном процессе если запущены вместе 
+    # Но подождите: бот и веб запущены вместе в одном процессе `dashboard.py`? 
+    # В `main.py` или `dashboard.py` они делят память. Можно импортировать magic_tokens!)
+    from web.dashboard import magic_tokens
+    magic_tokens[magic_token] = {"user_id": message.from_user.id, "role": role}
 
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🏢 Открыть Веб-Панель", url="http://127.0.0.1:8000")],
-        [InlineKeyboardButton(text="📊 Живая статистика", callback_data="admin_stats")],
+    kb_buttons = [
+        [InlineKeyboardButton(text="🏢 Открыть Веб-Панель", url=f"https://45.12.5.177.nip.io/auth/magic?token={magic_token}")],
         [InlineKeyboardButton(text="👁 Объявления (Модерация)", callback_data="admin_moderation_list")],
         [InlineKeyboardButton(text="📝 Заявки на обучение", callback_data="admin_education_list")],
-        [InlineKeyboardButton(text="📢 Массовая рассылка", callback_data="admin_broadcast_init")]
-    ])
-    await message.answer("🛠 <b>Панель администратора</b>\n\nВыберите раздел для управления:", parse_mode="HTML", reply_markup=kb)
+    ]
+    
+    if role == "admin":
+        kb_buttons.append([InlineKeyboardButton(text="📊 Живая статистика", callback_data="admin_stats")])
+        kb_buttons.append([InlineKeyboardButton(text="📢 Массовая рассылка", callback_data="admin_broadcast_init")])
+        
+    kb = InlineKeyboardMarkup(inline_keyboard=kb_buttons)
+    await message.answer(f"🛠 <b>Панель {'Администратора' if role == 'admin' else 'Модератора'}</b>", parse_mode="HTML", reply_markup=kb)
 
 @router.callback_query(F.data == "admin_moderation_list")
 async def moderation_list(callback: types.CallbackQuery):
@@ -149,6 +198,12 @@ class AdminBroadcastStates(StatesGroup):
 
 @router.callback_query(F.data == "admin_broadcast_init")
 async def broadcast_init(callback: types.CallbackQuery, state: FSMContext):
+    async with async_session() as session:
+        role = await get_user_role(session, callback.from_user.id, callback.from_user.username)
+        if role != "admin":
+            await callback.answer("Только для админов", show_alert=True)
+            return
+            
     await state.set_state(AdminBroadcastStates.waiting_for_message)
     kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="Отмена", callback_data="admin_cancel")]])
     await callback.message.answer(
@@ -201,6 +256,10 @@ from aiogram.types import BufferedInputFile
 @router.callback_query(F.data == "admin_stats")
 async def admin_stats(callback: types.CallbackQuery):
     async with async_session() as session:
+        role = await get_user_role(session, callback.from_user.id, callback.from_user.username)
+        if role != "admin":
+            await callback.answer("Только для админов", show_alert=True)
+            return
         users_count = await session.scalar(select(func.count()).select_from(User))
         listings_count = await session.scalar(select(func.count()).select_from(Listing).where(Listing.status == "active"))
         apps_count = await session.scalar(select(func.count()).select_from(EducationApplication))
@@ -285,14 +344,25 @@ async def admin_stats(callback: types.CallbackQuery):
 @router.callback_query(F.data == "admin_back_to_main")
 async def admin_back_to_main(callback: types.CallbackQuery):
     await callback.message.delete()
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🏢 Открыть Веб-Панель", url="http://127.0.0.1:8000")],
-        [InlineKeyboardButton(text="📊 Живая статистика", callback_data="admin_stats")],
+    async with async_session() as session:
+        role = await get_user_role(session, callback.from_user.id, callback.from_user.username)
+    
+    import secrets
+    magic_token = secrets.token_urlsafe(32)
+    from web.dashboard import magic_tokens
+    magic_tokens[magic_token] = {"user_id": callback.from_user.id, "role": role}
+    
+    kb_buttons = [
+        [InlineKeyboardButton(text="🏢 Открыть Веб-Панель", url=f"https://45.12.5.177.nip.io/auth/magic?token={magic_token}")],
         [InlineKeyboardButton(text="👁 Объявления (Модерация)", callback_data="admin_moderation_list")],
         [InlineKeyboardButton(text="📝 Заявки на обучение", callback_data="admin_education_list")],
-        [InlineKeyboardButton(text="📢 Массовая рассылка", callback_data="admin_broadcast_init")]
-    ])
-    await callback.message.answer("🛠 <b>Панель администратора</b>\n\nВыберите раздел для управления:", parse_mode="HTML", reply_markup=kb)
+    ]
+    if role == "admin":
+        kb_buttons.append([InlineKeyboardButton(text="📊 Живая статистика", callback_data="admin_stats")])
+        kb_buttons.append([InlineKeyboardButton(text="📢 Массовая рассылка", callback_data="admin_broadcast_init")])
+        
+    kb = InlineKeyboardMarkup(inline_keyboard=kb_buttons)
+    await callback.message.answer(f"🛠 <b>Панель {'Администратора' if role == 'admin' else 'Модератора'}</b>", parse_mode="HTML", reply_markup=kb)
     await callback.answer()
 
 @router.callback_query(F.data == "admin_education_list")
@@ -378,6 +448,9 @@ async def approve_listing(callback: types.CallbackQuery):
         await session.execute(
             update(Listing).where(Listing.id == listing_id).values(status="active")
         )
+        from db.crud.log import create_moderation_log
+        await create_moderation_log(session, callback.from_user.id, "approve_listing", "listing", listing_id)
+        
         await session.commit()
     
     if listing:
@@ -395,6 +468,8 @@ async def reject_listing(callback: types.CallbackQuery):
         await session.execute(
             update(Listing).where(Listing.id == listing_id).values(status="rejected")
         )
+        from db.crud.log import create_moderation_log
+        await create_moderation_log(session, callback.from_user.id, "reject_listing", "listing", listing_id)
         await session.commit()
     
     current_caption = callback.message.caption or ""
@@ -404,8 +479,10 @@ async def reject_listing(callback: types.CallbackQuery):
 @router.message(F.forward_from_chat | F.forward_from | F.forward_origin)
 async def process_forwarded_post(message: types.Message):
     """Обработка пересланного сообщения из канала партнера"""
-    if not is_admin(message.from_user.id, message.from_user.username):
-        return
+    async with async_session() as session:
+        role = await get_user_role(session, message.from_user.id, message.from_user.username)
+        if role != "admin":
+            return
         
     logger.info(f"Admin {message.from_user.id} forwarded a post")
     

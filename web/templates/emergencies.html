@@ -1,72 +1,14 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Центр ЧС - RentBot</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --bg: #0f172a;
-            --card: #1e293b;
-            --primary: #f87171;
-            --text: #f8fafc;
-        }
-        body {
-            font-family: 'Inter', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            margin: 0;
-            padding: 20px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background: var(--card);
-            border-radius: 12px;
-            overflow: hidden;
-            margin-top: 20px;
-        }
-        th, td {
-            text-align: left;
-            padding: 16px;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
-        th {
-            background: rgba(255,255,255,0.05);
-            color: var(--primary);
-        }
-        .status-pending { color: #facc15; }
-        .status-approved { color: #4ade80; }
-        .status-rejected { color: #f87171; }
-        
-        .nav a {
-            color: var(--text);
-            text-decoration: none;
-            margin-right: 20px;
-        }
-        .btn {
-            padding: 8px 16px;
-            border-radius: 8px;
-            border: none;
-            cursor: pointer;
-            font-weight: 600;
-            text-decoration: none;
-            display: inline-block;
-            margin-right: 5px;
-        }
-        .btn-approve { background: #22c55e; color: white; }
-        .btn-reject { background: #ef4444; color: white; }
-        form { display: inline; }
-        .ai-summary { background: rgba(0,0,0,0.3); padding: 8px; border-radius: 8px; font-size: 0.9em; margin-top: 5px; border-left: 3px solid #38bdf8;}
-    </style>
-</head>
-<body>
-    <div class="nav">
-        <a href="/">⬅️ Назад на дашборд</a>
-        <a href="/listings">📦 Объявления</a>
+{% extends "base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 style="color: #f87171;">🚨 Центр мониторинга ЧС (MoMoA)</h1>
+        <p style="color: var(--text-dim);">Анализ экстренных вызовов и координация БПЛА</p>
     </div>
-    <h1>🚨 Панель модерации экстренных вызовов (ЧС)</h1>
+</div>
+
+<div class="table-container">
     <table>
         <thead>
             <tr>
@@ -80,41 +22,67 @@
         </thead>
         <tbody>
             {% for alert in emergencies %}
-            <tr>
-                <td>{{ alert.id }}</td>
-                <td><strong>{{ alert.city or "Неизвестно" }}</strong></td>
-                <td style="max-width: 400px; white-space: pre-wrap; word-wrap: break-word;">
-                    {{ alert.raw_text }}
+            <tr style="{% if alert.status == 'pending' %}background: rgba(239, 68, 68, 0.05);{% endif %}">
+                <td style="color: var(--text-dim);">{{ alert.id }}</td>
+                <td><strong style="font-size: 16px;">{{ alert.city or "Неизвестно" }}</strong></td>
+                <td style="max-width: 400px; white-space: normal; line-height: 1.5;">
+                    <div style="margin-bottom: 8px;">{{ alert.raw_text }}</div>
                     {% if alert.ai_summary %}
-                    <div class="ai-summary">
-                        <strong>🤖 Вердикт MoMoA:</strong><br>
+                    <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; font-size: 13px; border-left: 3px solid #38bdf8;">
+                        <strong style="color: #38bdf8;">🤖 Вердикт MoMoA:</strong><br>
                         {{ alert.ai_summary }}
                     </div>
                     {% endif %}
                 </td>
                 <td>
                     {{ alert.reporter.full_name }}<br>
-                    <small>@{{ alert.reporter.username }}</small>
+                    <a href="https://t.me/{{ alert.reporter.username }}" target="_blank" style="color: var(--accent); text-decoration: none; font-size: 13px;">@{{ alert.reporter.username }}</a>
                 </td>
-                <td class="status-{{ alert.status }}">{{ alert.status }}</td>
                 <td>
-                    {% if alert.status == "pending" %}
+                    {% if alert.status == 'pending' %}
+                        <span style="color: #facc15; font-weight: 600; background: rgba(250, 204, 21, 0.1); padding: 4px 8px; border-radius: 6px; font-size: 13px;">Ожидает</span>
+                    {% elif alert.status == 'approved' %}
+                        <span style="color: #4ade80; font-weight: 600; background: rgba(74, 222, 128, 0.1); padding: 4px 8px; border-radius: 6px; font-size: 13px;">✅ В работе</span>
+                    {% else %}
+                        <span style="color: #ef4444; font-weight: 600; background: rgba(239, 68, 68, 0.1); padding: 4px 8px; border-radius: 6px; font-size: 13px;">❌ Отклонено</span>
+                    {% endif %}
+                </td>
+                
+                <td>
+                    {% if alert.status == 'pending' %}
                     <form action="/emergencies/{{ alert.id }}/approve" method="post" style="display: inline;">
-                        <button type="submit" class="btn btn-approve">Одобрить</button>
+                        <button type="submit" class="glass-btn" style="padding: 6px 12px; font-size: 13px; background: rgba(74, 222, 128, 0.2); color: #4ade80; border: 1px solid rgba(74, 222, 128, 0.5); margin-bottom: 5px;">Принять</button>
                     </form>
                     <form action="/emergencies/{{ alert.id }}/reject" method="post" style="display: inline;">
-                        <button type="submit" class="btn btn-reject">Отклонить</button>
+                        <button type="submit" class="glass-btn" style="padding: 6px 12px; font-size: 13px; background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.5);">Отклонить</button>
                     </form>
                     {% else %}
-                    <span style="opacity: 0.5;">Действие выполнено</span>
+                        <span style="color: var(--text-dim); font-size: 13px;">Обработано</span>
                     {% endif %}
                 </td>
             </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-dim);">Нет экстренных заявок.</td>
+            </tr>
             {% endfor %}
-            {% if not emergencies %}
-            <tr><td colspan="6" style="text-align: center; opacity: 0.5;">Нет экстренных заявок.</td></tr>
-            {% endif %}
         </tbody>
     </table>
-</body>
-</html>
+</div>
+
+<div class="pagination">
+    {% if page > 1 %}
+        <a href="?page={{ page - 1 }}" class="page-link">« Назад</a>
+    {% endif %}
+    
+    {% for p in range(1, total_pages + 1) %}
+        {% if p > page - 3 and p < page + 3 %}
+            <a href="?page={{ p }}" class="page-link {% if p == page %}active{% endif %}">{{ p }}</a>
+        {% endif %}
+    {% endfor %}
+    
+    {% if page < total_pages %}
+        <a href="?page={{ page + 1 }}" class="page-link">Вперед »</a>
+    {% endif %}
+</div>
+{% endblock %}

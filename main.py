@@ -11,7 +11,8 @@ from bot.handlers import (
     education_router, sales_router, packages_router,
     search_router, seller_profile_router, operators_router,
     support_router, emergency_router, admin_emergency_router,
-    admin_advisor_router, booking_router, contract_router
+    admin_advisor_router, booking_router, contract_router,
+    job_router, job_hiring_router
 )
 from db.base import init_db
 
@@ -73,6 +74,8 @@ async def main():
     dp.include_router(admin_advisor_router)
     dp.include_router(booking_router)
     dp.include_router(contract_router)
+    dp.include_router(job_router)
+    dp.include_router(job_hiring_router)
 
     # Установка команд меню
     from bot.commands import set_commands
@@ -87,6 +90,13 @@ async def main():
         me = await bot.get_me()
         logger.info(f"Bot authorized as @{me.username} (ID: {me.id})")
         
+        import uvicorn
+        from web.dashboard import app
+        app.state.bot = bot
+        app.state.dp = dp
+        config = uvicorn.Config(app=app, host="0.0.0.0", port=8000)
+        server = uvicorn.Server(config)
+
         if USE_WEBHOOK:
             logger.info(f"Setting webhook to {WEBHOOK_URL}...")
             webhook_kwargs = {"url": WEBHOOK_URL, "drop_pending_updates": True}
@@ -94,18 +104,11 @@ async def main():
                 webhook_kwargs["secret_token"] = WEBHOOK_SECRET
             await bot.set_webhook(**webhook_kwargs)
             logger.info("Webhook set. Starting FastAPI server...")
-            
-            import uvicorn
-            from web.dashboard import app
-            app.state.bot = bot
-            app.state.dp = dp
-            
-            config = uvicorn.Config(app=app, host="0.0.0.0", port=8000)
-            server = uvicorn.Server(config)
             await server.serve()
         else:
-            logger.info("Bot starting polling...")
+            logger.info("Bot starting polling and FastAPI server concurrently...")
             await bot.delete_webhook(drop_pending_updates=True)
+            asyncio.create_task(server.serve())
             await dp.start_polling(bot)
             
     except Exception as e:

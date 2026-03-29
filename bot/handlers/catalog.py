@@ -239,6 +239,71 @@ async def handle_webapp_data(message: types.Message):
             else:
                 await message.answer(text, parse_mode="HTML", reply_markup=kb)
                 
+        elif action == "apply_job":
+            job_id = data.get("id")
+            if not job_id:
+                return
+            
+            from db.models.job import Job
+            from db.models.job_response import JobResponse
+            from sqlalchemy import select
+            
+            async with async_session() as session:
+                job = await session.scalar(select(Job).where(Job.id == int(job_id)))
+                if not job:
+                    await message.answer("⚠️ Вакансия / заказ не найдена.")
+                    return
+                if job.status != "active":
+                    await message.answer("⚠️ Заказ больше не актуален.")
+                    return
+                
+                # Check if already applied
+                existing = await session.scalar(
+                    select(JobResponse).where(
+                        JobResponse.job_id == job.id, JobResponse.pilot_id == message.from_user.id
+                    )
+                )
+                if existing:
+                    await message.answer("⚠️ Вы уже откликались на этот заказ.")
+                    return
+                
+                # Retrieve pilot info
+                from db.crud.user import get_user_profile
+                pilot = await get_user_profile(session, message.from_user.id)
+                
+                # Save response
+                resp = JobResponse(job_id=job.id, pilot_id=message.from_user.id)
+                session.add(resp)
+                await session.commit()
+                
+            # Send message to employer
+            pilot_username = f"@{message.from_user.username}" if message.from_user.username else f"<a href='tg://user?id={message.from_user.id}'>Ссылка</a>"
+            pilot_name = message.from_user.first_name
+            pilot_info = (
+                f"Внешний пилот: <b>{'Да' if pilot.has_license else 'Нет'}</b>\n"
+                f"Наличие медкнижки (ВЛЭК): <b>{'Да' if pilot.has_medical else 'Нет'}</b>\n"
+                f"Часы налета: <b>{pilot.flight_hours} ч.</b>"
+            ) if pilot else "<i>Профиль пилота пока не заполнен.</i>"
+            
+            employer_msg = (
+                f"🔥 <b>Новый отклик на ваш заказ!</b>\n\n"
+                f"<b>Задача:</b> {job.title}\n"
+                f"<b>Откликнулся пилот:</b> {pilot_name} ({pilot_username})\n\n"
+                f"<b>Справка о кандидате:</b>\n{pilot_info}\n\n"
+                f"Свяжитесь с пилотом для обсуждения подробностей!"
+            )
+            try:
+                from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+                kb = InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="💬 Написать пилоту", url=f"tg://user?id={message.from_user.id}")],
+                    [InlineKeyboardButton(text="🤝 Выбрать Исполнителем (Договор)", callback_data=f"hire_pilot_{job.id}_{message.from_user.id}")]
+                ])
+                await message.bot.send_message(chat_id=job.employer_id, text=employer_msg, parse_mode="HTML", reply_markup=kb)
+                await message.answer("✅ <b>Ваш отклик успешно отправлен заказчику!</b> Ожидайте сообщения от работодателя.", parse_mode="HTML")
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Error sending job response to employer {job.employer_id}: {e}")
+                await message.answer("❌ Не удалось доставить отклик заказчику. Возможно, он заблокировал бота.")
     except Exception as e:
         import logging
         logging.getLogger(__name__).error(f"Error handling web_app_data: {e}")

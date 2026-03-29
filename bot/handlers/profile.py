@@ -32,14 +32,21 @@ async def show_profile(message: types.Message):
     if getattr(user, 'volunteer_rescues', 0) > 0:
         u_type_display += f"\n🏅 <b>Проверенный Волонтер</b> ({user.volunteer_rescues} выездов на ЧП)"
         
+    if getattr(user, 'has_license', False) and getattr(user, 'has_medical', False):
+        u_type_display += "\n✅ <b>Проверенный Пилот</b> (Лицензия + ВЛЭК подтверждены)"
+        
     avg_rating = round(avg_rating, 1) if avg_rating else 0
     stars = "⭐" * int(avg_rating) if avg_rating else "Нет оценок"
 
     kb_list = [
         [InlineKeyboardButton(text="📋 Мои объявления", callback_data="my_listings_list")],
-        [InlineKeyboardButton(text="🎁 Пригласить друга", callback_data="invite_friend")],
-        [InlineKeyboardButton(text="🔙 В главное меню", callback_data="back_to_main")]
+        [InlineKeyboardButton(text="🎁 Пригласить друга", callback_data="invite_friend")]
     ]
+    
+    if not (getattr(user, 'has_license', False) and getattr(user, 'has_medical', False)):
+        kb_list.append([InlineKeyboardButton(text="🏅 Получить статус 'Проверен'", callback_data="verify_pilot_status")])
+        
+    kb_list.append([InlineKeyboardButton(text="🔙 В главное меню", callback_data="back_to_main")])
     
     if user.user_type == "company":
         kb_list.insert(0, [InlineKeyboardButton(text="💎 Пополнить пакет", callback_data="buy_slots_menu")])
@@ -81,6 +88,20 @@ async def invite_friend(callback: types.CallbackQuery):
         f"🎁 <b>Приглашайте друзей и получайте бонусы!</b>\n\n"
         f"Отправьте эту ссылку друзьям. Когда они зарегистрируются и разместят своё первое объявление, вы получите <b>+1 Бесплатное поднятие в ТОП</b> (VIP-размещение) для вашего оборудования!\n\n"
         f"Ваша ссылка:\n<code>{ref_link}</code>",
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
+@router.callback_query(F.data == "verify_pilot_status")
+async def verify_pilot_status(callback: types.CallbackQuery):
+    await callback.message.answer(
+        "🏅 <b>Верификация Пилота</b>\n\n"
+        "Статус «Проверенный Пилот» повышает доверие заказчиков и продвигает ваши услуги в ТОП.\n\n"
+        "Для получения статуса необходимо предоставить:\n"
+        "1. Действующее Свидетельство внешнего пилота.\n"
+        "2. Медицинское заключение (ВЛЭК/ОМО).\n"
+        "3. Подтвержденный налет от 20 часов.\n\n"
+        "Пожалуйста, отправьте сканы документов нашему модератору: @SkyRent_Support",
         parse_mode="HTML"
     )
     await callback.answer()

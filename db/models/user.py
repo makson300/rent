@@ -22,6 +22,8 @@ class User(Base):
     user_type: Mapped[str] = mapped_column(String(20), default="private") # private / company
     ad_slots: Mapped[int] = mapped_column(default=0)
     is_banned: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_moderator: Mapped[bool] = mapped_column(Boolean, default=False)
     volunteer_rescues: Mapped[int] = mapped_column(default=0)
     referrer_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     referral_bonus: Mapped[int] = mapped_column(default=0)

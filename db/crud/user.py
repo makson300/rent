@@ -77,3 +77,32 @@ async def set_user_ban_status(session: AsyncSession, telegram_id: int, is_banned
         await session.commit()
         return True
     return False
+
+async def get_user_by_username(session: AsyncSession, username: str) -> User | None:
+    """Найти пользователя по username (без @)"""
+    username = username.lstrip("@").lower()
+    # ILIKE is not natively in sqlite, so we lower both sides for cross-db compat if we can, or just ilike for postgres
+    from sqlalchemy import or_, func
+    result = await session.execute(
+        select(User).where(func.lower(User.username) == username)
+    )
+    return result.scalar_one_or_none()
+
+async def set_user_role(session: AsyncSession, target_id: int | None, username: str | None, role: str, is_active: bool) -> tuple[bool, str]:
+    """Установить роль (admin, moderator) по telegram_id или username"""
+    user = None
+    if target_id is not None:
+        user = await get_user(session, target_id)
+    elif username is not None:
+        user = await get_user_by_username(session, username)
+        
+    if not user:
+        return False, "Пользователь не найден в БД."
+        
+    if role == "admin":
+        user.is_admin = is_active
+    elif role == "moderator":
+        user.is_moderator = is_active
+        
+    await session.commit()
+    return True, f"Роль {role} {'выдана' if is_active else 'снята'} для пользователя {user.first_name}"

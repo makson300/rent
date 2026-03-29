@@ -1,0 +1,20 @@
+bot-1  | 2026-03-28 19:04:01,307 - INFO - __main__ - Starting application...
+bot-1  | 2026-03-28 19:04:01,308 - INFO - __main__ - Initializing database...
+bot-1  | 2026-03-28 19:04:01,481 - INFO - __main__ - Database is ready.
+bot-1  | 2026-03-28 19:04:01,507 - INFO - __main__ - Using Redis storage: redis://:Yz3nWm8vRp5sKdHx@redis:6379/0
+bot-1  | 2026-03-28 19:04:01,509 - INFO - __main__ - Registering routers...
+bot-1  | 2026-03-28 19:04:01,680 - WARNING - bot.services.emergency_monitor - google-genai not installed or GEMINI_API_KEY empty. Using stubs!
+bot-1  | 2026-03-28 19:04:01,680 - INFO - __main__ - Bot configuration ready.
+bot-1  | 2026-03-28 19:04:01,682 - INFO - bot.services.emergency_monitor - Emergency Monitor started
+bot-1  | 2026-03-28 19:04:01,682 - INFO - bot.services.emergency_monitor - Research cycle started at 2026-03-28 19:04:01.682203
+bot-1  | 2026-03-28 19:04:01,682 - INFO - bot.services.emergency_monitor - [Orchestrator] Assigned research task for: Пожар в лесном массиве
+bot-1  | 2026-03-28 19:04:01,730 - INFO - __main__ - Bot authorized as @SKY_RENT_HUB_BOT (ID: 8670983320)
+bot-1  | 2026-03-28 19:04:01,731 - INFO - __main__ - Bot starting polling...
+bot-1  | 2026-03-28 19:04:01,781 - INFO - aiogram.dispatcher - Start polling
+bot-1  | 2026-03-28 19:04:01,832 - INFO - aiogram.dispatcher - Run polling for bot @SKY_RENT_HUB_BOT id=8670983320 - 'RENT'
+bot-1  | 2026-03-28 19:04:03,684 - WARNING - bot.services.emergency_monitor - 
+bot-1  | 🚨 [MoMoA EMERGENCY ALERT] 🚨
+bot-1  | Тема: Пожар в лесном массиве
+bot-1  | Обоснование ИИ: Заглушка: Аналитик прав. Задымление требует БПЛА, наземной технике трудно оценить масштабы.
+bot-1  | Рекомендуемое действие: Рассылка операторам БПЛА.
+bot-1  | 2026-03-28 19:04:03,684 - INFO - bot.services.emergency_monitor - Research cycle completed

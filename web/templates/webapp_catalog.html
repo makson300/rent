@@ -2,104 +2,310 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TMA Каталог</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Sky Rent AI Каталог</title>
     <!-- Telegram WebApp JS -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                    },
+                    colors: {
+                        space: {
+                            900: '#050b14',
+                            800: '#0a1526',
+                            700: '#112240',
+                        },
+                        accent: {
+                            cyan: '#00f2fe',
+                            pink: '#fe0979',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
     <style>
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--tg-theme-bg-color, #f3f4f6);
-            color: var(--tg-theme-text-color, #111827);
+            background-color: #050b14;
+            color: #f3f4f6;
             margin: 0;
             padding: 0;
+            overflow-x: hidden;
+            background-image: radial-gradient(circle at top right, rgba(0, 242, 254, 0.05), transparent 40%),
+                              radial-gradient(circle at bottom left, rgba(254, 9, 121, 0.05), transparent 40%);
+            background-attachment: fixed;
         }
-        .card {
-            background-color: var(--tg-theme-secondary-bg-color, #ffffff);
-            border-radius: 16px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+
+        /* Glassmorphism Classes */
+        .glass-card {
+            background: rgba(10, 21, 38, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glass-card:active {
+            transform: scale(0.96);
+            background: rgba(17, 34, 64, 0.8);
+        }
+
+        .glass-header {
+            background: rgba(5, 11, 20, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .search-input {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            transition: all 0.2s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: rgba(0, 242, 254, 0.5);
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.1);
+        }
+
+        .filter-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            color: #9ca3af;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        .filter-btn.active {
+            background: linear-gradient(135deg, rgba(0,242,254,0.1) 0%, rgba(0,242,254,0.2) 100%);
+            border-color: rgba(0, 242, 254, 0.4);
+            color: #00f2fe;
+            box-shadow: 0 0 10px rgba(0, 242, 254, 0.1);
+        }
+
+        .badge-sale {
+            background: linear-gradient(135deg, rgba(236, 72, 153, 0.1), rgba(236, 72, 153, 0.2));
+            color: #ec4899;
+            border: 1px solid rgba(236, 72, 153, 0.3);
+        }
+
+        .badge-rent {
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(139, 92, 246, 0.2));
+            color: #a78bfa;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+
+        .badge-op {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.2));
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+        
+        .badge-premium {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
+        }
+
+        .action-btn {
+            background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+            color: #050b14;
+            font-weight: 700;
+            transition: opacity 0.2s;
+        }
+
+        .action-btn:active {
+            opacity: 0.8;
+        }
+
+        .image-placeholder {
+            background: linear-gradient(135deg, rgba(10,21,38,1) 0%, rgba(17,34,64,1) 100%);
+            position: relative;
             overflow: hidden;
-            border: 1px solid rgba(0,0,0,0.05);
-            transition: transform 0.2s ease;
         }
-        .card:active {
-            transform: scale(0.98);
+        
+        .image-placeholder::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
+            transform: skewX(-20deg) translateX(-150%);
+            animation: shimmer 3s infinite;
         }
-        .text-hint {
-            color: var(--tg-theme-hint-color, #6b7280);
+
+        @keyframes shimmer {
+            100% { transform: skewX(-20deg) translateX(150%); }
         }
-        .btn-primary {
-            background-color: var(--tg-theme-button-color, #3b82f6);
-            color: var(--tg-theme-button-text-color, #ffffff);
-            border-radius: 8px;
-            font-weight: 600;
+
+        /* Hide scrollbar for category list */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none; /* IE and Edge */
+            scrollbar-width: none; /* Firefox */
+        }
+        
+        .empty-state {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            color: #9ca3af;
             text-align: center;
         }
-        .badge {
-            background-color: rgba(59, 130, 246, 0.1);
-            color: var(--tg-theme-button-color, #3b82f6);
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-        .badge-premium {
-            background-color: rgba(245, 158, 11, 0.1);
-            color: #d97706;
+        
+        .empty-state.visible {
+            display: flex;
         }
     </style>
 </head>
-<body class="pb-10">
+<body class="pb-20">
 
-    <div class="sticky top-0 z-10 p-4" style="background-color: var(--tg-theme-bg-color, #f3f4f6);">
-        <h1 class="text-2xl font-bold flex items-center justify-between">
-            <span>🛒 Маркетплейс</span>
-        </h1>
-        <p class="text-sm text-hint mt-1">Оборудование и услуги</p>
+    <!-- Header & Search (Sticky) -->
+    <div class="sticky top-0 z-50 glass-header px-4 pt-4 pb-3">
+        <div class="flex items-center justify-between mb-4">
+            <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-accent-cyan to-blue-400">
+                Маркетплейс
+            </h1>
+            <div class="w-8 h-8 rounded-full bg-space-800 border border-gray-700 flex items-center justify-center text-sm shadow-inner group">
+                <i class="fas fa-satellite-dish text-accent-cyan animate-pulse"></i>
+            </div>
+        </div>
+
+        <div class="relative">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <i class="fas fa-search text-gray-400"></i>
+            </div>
+            <input type="text" id="searchInput" class="search-input w-full rounded-xl py-3 pl-10 pr-4 text-sm" placeholder="Поиск дронов, локаций...">
+        </div>
+        
+        <!-- Categories -->
+        <div class="flex gap-2 mt-4 overflow-x-auto no-scrollbar pb-1">
+            <button class="filter-btn active px-4 py-2 rounded-xl text-sm font-medium" data-filter="all">Все</button>
+            <button class="filter-btn px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2" data-filter="sale">
+                <i class="fas fa-box text-pink-400"></i> Продажа
+            </button>
+            <button class="filter-btn px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2" data-filter="rent">
+                <i class="fas fa-clock text-purple-400"></i> Аренда
+            </button>
+            <button class="filter-btn px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2" data-filter="operator">
+                <i class="fas fa-user-astronaut text-emerald-400"></i> Пилоты
+            </button>
+            <button class="filter-btn px-4 py-2 rounded-xl text-sm font-medium flex items-center gap-2" data-filter="job">
+                <i class="fas fa-briefcase text-blue-400"></i> Вакансии
+            </button>
+        </div>
     </div>
 
-    <div class="px-4 grid grid-cols-2 gap-4" id="listings-container">
+    <!-- Listings Grid -->
+    <div class="px-4 mt-4 grid grid-cols-2 gap-4" id="listingsContainer">
         {% for listing in listings %}
-        <div class="card flex flex-col" onclick="viewListing({{ listing.id }})">
-            <div class="relative w-full aspect-square bg-gray-200">
+        <div class="glass-card flex flex-col listing-item" 
+             data-type="{{ listing.listing_type }}" 
+             data-title="{{ listing.title|lower }}" 
+             data-city="{{ listing.city|lower }}"
+             onclick="viewListing({{ listing.id }})">
+            
+            <div class="relative w-full aspect-square image-placeholder rounded-t-[19px]">
                 {% if listing.photos and listing.photos|length > 0 %}
-                    <img src="https://tg-files-proxy.example.com/file/{{ listing.photos[0].photo_id }}" alt="Photo" class="w-full h-full object-cover">
+                    <!-- If we had a working proxy -->
+                    <!-- <img src="..." class="w-full h-full object-cover rounded-t-[19px]"> -->
+                    <div class="w-full h-full flex flex-col items-center justify-center text-4xl opacity-80" style="font-size: 3rem;">
+                        {% if 'mavic' in listing.title|lower or 'dji' in listing.title|lower %}🚁{% else %}📷{% endif %}
+                    </div>
                 {% else %}
-                    <div class="w-full h-full flex items-center justify-center text-4xl bg-gray-100">🚁</div>
+                    <div class="w-full h-full flex items-center justify-center text-4xl opacity-50">🛸</div>
                 {% endif %}
                 
                 {% if listing.is_promoted %}
-                <div class="absolute top-2 right-2 badge badge-premium px-2 py-1 flex items-center gap-1 shadow-sm">
-                    ⭐️ ТОП
+                <div class="absolute top-2 right-2 badge-premium px-2 py-0.5 rounded-lg text-[10px] font-bold tracking-wide uppercase flex items-center gap-1">
+                    <i class="fas fa-star text-[8px]"></i> ТОП
                 </div>
                 {% endif %}
             </div>
             
-            <div class="p-3 flex-1 flex flex-col">
-                <div class="mb-1">
+            <div class="p-3 flex-1 flex flex-col border-t border-white/5">
+                <div class="mb-2">
                     {% if listing.listing_type == 'sale' %}
-                        <span class="badge">Продажа</span>
+                        <span class="badge-sale px-2 py-0.5 rounded-md text-[10px] uppercase font-bold tracking-wider">Продажа</span>
                     {% elif listing.listing_type == 'operator' %}
-                        <span class="badge" style="background-color: rgba(16, 185, 129, 0.1); color: #059669;">Оператор</span>
+                        <span class="badge-op px-2 py-0.5 rounded-md text-[10px] uppercase font-bold tracking-wider">Пилот</span>
                     {% else %}
-                        <span class="badge" style="background-color: rgba(139, 92, 246, 0.1); color: #7c3aed;">Аренда</span>
+                        <span class="badge-rent px-2 py-0.5 rounded-md text-[10px] uppercase font-bold tracking-wider">Аренда</span>
                     {% endif %}
                 </div>
                 
-                <h3 class="font-bold text-sm leading-tight mb-1 line-clamp-2 h-10">{{ listing.title }}</h3>
-                <p class="text-xs text-hint mb-2">📍 {{ listing.city }}</p>
+                <h3 class="font-semibold text-sm leading-tight mb-1 line-clamp-2 h-10 text-gray-100">{{ listing.title }}</h3>
+                <p class="text-[11px] text-gray-400 mb-3 flex items-center gap-1">
+                    <i class="fas fa-map-marker-alt opacity-70"></i> {{ listing.city }}
+                </p>
                 
                 <div class="mt-auto flex items-end justify-between">
-                    <div class="font-bold text-sm text-blue-600 truncate mr-2">{{ listing.price_list.split(',')[0] }}</div>
-                    <button onclick="sendDataAction('buy', {{ listing.id }}); event.stopPropagation();" class="shrink-0 btn-primary w-8 h-8 flex items-center justify-center rounded-full shadow-sm">
-                        {% if listing.listing_type == 'sale' %}Купить{% else %}Взять{% endif %}
+                    <div class="font-bold text-sm text-accent-cyan truncate mr-2">{{ listing.price_list.split(',')[0] }}</div>
+                    <button onclick="sendDataAction('buy', {{ listing.id }}); event.stopPropagation();" 
+                            class="shrink-0 action-btn w-8 h-8 flex items-center justify-center rounded-xl shadow-lg">
+                        <i class="fas fa-chevron-right text-sm"></i>
                     </button>
                 </div>
             </div>
         </div>
         {% endfor %}
+        
+        <!-- Jobs Grid -->
+        {% for job in jobs %}
+        <div class="glass-card flex flex-col listing-item" 
+             data-type="job" 
+             data-title="{{ job.title|lower }}" 
+             data-city="{{ job.city|lower }}"
+             onclick="viewJob({{ job.id }})">
+            
+            <div class="p-4 flex-1 flex flex-col">
+                <div class="mb-3">
+                    <span class="badge-premium px-2 py-0.5 rounded-md text-[10px] uppercase font-bold tracking-wider" style="background: linear-gradient(135deg, #0ea5e9, #2563eb); box-shadow: 0 0 10px rgba(14, 165, 233, 0.4);">
+                        Вакансия
+                    </span>
+                </div>
+                
+                <h3 class="font-bold text-sm leading-tight mb-2 line-clamp-2 text-white">{{ job.title }}</h3>
+                <p class="text-[11px] text-gray-300 mb-2 flex items-center gap-1">
+                    <i class="fas fa-layer-group opacity-70"></i> {{ job.category }}
+                </p>
+                <p class="text-[11px] text-gray-400 mb-4 flex items-center gap-1">
+                    <i class="fas fa-map-marker-alt opacity-70"></i> {{ job.city }}
+                </p>
+                
+                <div class="mt-auto flex items-end justify-between">
+                    <div class="font-bold text-sm text-accent-cyan truncate mr-2">{{ job.budget }}</div>
+                    <button onclick="sendJobAction('apply_job', {{ job.id }}); event.stopPropagation();" 
+                            class="shrink-0 action-btn w-8 h-8 flex items-center justify-center rounded-xl shadow-lg">
+                        <i class="fas fa-briefcase text-sm"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div id="emptyState" class="empty-state">
+        <div class="w-16 h-16 rounded-full bg-space-800 flex items-center justify-center mb-4 border border-white/5">
+            <i class="fas fa-search text-2xl text-gray-500"></i>
+        </div>
+        <h3 class="text-lg font-semibold text-white mb-1">Ничего не найдено</h3>
+        <p class="text-sm">Попробуйте изменить параметры поиска или выбрать другую категорию.</p>
     </div>
 
     <script>
@@ -108,26 +314,105 @@
         tg.expand();
         tg.ready();
 
-        // Optional theme config 
-        if (tg.themeParams.bg_color) {
-            document.body.style.backgroundColor = tg.themeParams.bg_color;
+        // Optional: tell TG we use dark theme header natively
+        tg.setHeaderColor('#050b14');
+        tg.setBackgroundColor('#050b14');
+
+        // Logic for filtering
+        const searchInput = document.getElementById('searchInput');
+        const filterBtns = document.querySelectorAll('.filter-btn');
+        const items = document.querySelectorAll('.listing-item');
+        const emptyState = document.getElementById('emptyState');
+        
+        let currentFilter = 'all';
+        let searchQuery = '';
+
+        function applyFilters() {
+            let visibleCount = 0;
+            
+            items.forEach(item => {
+                const type = item.getAttribute('data-type');
+                const title = item.getAttribute('data-title');
+                const city = item.getAttribute('data-city');
+                
+                const matchesFilter = currentFilter === 'all' || type === currentFilter;
+                const matchesSearch = searchQuery === '' || title.includes(searchQuery) || city.includes(searchQuery);
+                
+                if (matchesFilter && matchesSearch) {
+                    item.style.display = 'flex';
+                    // Trigger tiny animation
+                    item.style.animation = 'none';
+                    item.offsetHeight; // trigger reflow
+                    item.style.animation = 'fadeIn 0.3s ease-out forwards';
+                    visibleCount++;
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+            
+            if (visibleCount === 0) {
+                emptyState.classList.add('visible');
+            } else {
+                emptyState.classList.remove('visible');
+            }
         }
 
-        // Action when user clicks main card area -> Just open bot deep link maybe?
-        // Or send data to bot to show full info
+        // Search event
+        searchInput.addEventListener('input', (e) => {
+            searchQuery = e.target.value.toLowerCase().trim();
+            applyFilters();
+        });
+
+        // Category events
+        filterBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                filterBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentFilter = btn.getAttribute('data-filter');
+                applyFilters();
+                
+                // Haptic feedback if supported check
+                if (tg.HapticFeedback) {
+                    tg.HapticFeedback.selectionChanged();
+                }
+            });
+        });
+
         function viewListing(id) {
-            // Because sendData is limited, we can also use openTelegramLink to send a start parameter
+            // Haptic
+            if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
             tg.sendData(JSON.stringify({action: "view", id: id}));
         }
 
-        // Action when user clicks the primary action button
         function sendDataAction(action_type, id) {
+            if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
             tg.showConfirm(`Вы хотите открыть карточку оборудования #${id}?`, function(result) {
                 if (result) {
                     tg.sendData(JSON.stringify({action: "view", id: id}));
                 }
             });
         }
+        
+        function viewJob(id) {
+            if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+            // send detailed view request later, for now just confirm apply
+            sendJobAction('apply_job', id);
+        }
+
+        function sendJobAction(action_type, id) {
+            if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+            tg.showConfirm(`Вы действительно хотите отправить свой профиль пилота заказчику этой задачи?`, function(result) {
+                if (result) {
+                    tg.sendData(JSON.stringify({action: "apply_job", id: id}));
+                }
+            });
+        }
     </script>
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
 </body>
 </html>

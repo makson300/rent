@@ -30,6 +30,9 @@ async def init_db():
     from db.models.category import Category
     from db.models.user import User
     from db.models.review import Review
+    from db.models.log import ModerationLog
+    from db.models.job import Job
+    from db.models.job_response import JobResponse
     from sqlalchemy import select
     
     async with async_session() as session:
