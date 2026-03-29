@@ -5,6 +5,9 @@ from sqlalchemy import select
 from db.base import async_session
 from db.crud.user import get_user
 from db.models.flight_plan import FlightPlan
+from db.models.emergency import EmergencyAlert
+from aiogram.fsm.context import FSMContext
+from bot.states.emergency import EmergencyState
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -84,11 +87,10 @@ async def my_orvd_menu(callback: types.CallbackQuery):
     )
 
 @router.callback_query(F.data == "orvd_emergency")
-async def orvd_emergency_start(callback: types.CallbackQuery):
+async def orvd_emergency_start(callback: types.CallbackQuery, state: FSMContext):
     """Запуск создания экстренной короткой заявки SAR"""
-    # В рамках ТЗ создаем заглушку, либо просим скинуть геопозицию. 
-    # Это можно развить в FSM машину состояний.
     await callback.answer("🚨 Режим экстренной подачи SAR-кода", show_alert=True)
+    await state.set_state(EmergencyState.waiting_for_location)
     
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Отмена", callback_data="my_orvd")]
@@ -96,6 +98,39 @@ async def orvd_emergency_start(callback: types.CallbackQuery):
     
     await callback.message.edit_text(
         "🚨 <b>ЭКСТРЕННАЯ ЗАЯВКА НА ИВП (SAR)</b>\n\nФункция используется <b>ТОЛЬКО</b> при поиске пропавших людей и устранении ЧС!\n\nДля автоматического формирования экстренного МР ИВП, отправьте геопозицию центра проведения работ (через скрепку 📎 -> Геопозиция).",
+        parse_mode="HTML",
+        reply_markup=kb
+    )
+
+@router.message(EmergencyState.waiting_for_location, F.location)
+async def orvd_emergency_location_step(message: types.Message, state: FSMContext):
+    lat = message.location.latitude
+    lng = message.location.longitude
+    
+    async with async_session() as session:
+        user = await get_user(session, message.from_user.id)
+        if not user:
+            return
+            
+        new_alert = EmergencyAlert(
+            reporter_id=user.id,
+            lat=lat,
+            lng=lng,
+            problem_type="SAR - Экстренный поисковый отряд",
+            raw_text=f"Геолокация: {lat}, {lng}. Вызов через бота.",
+            status="pending"
+        )
+        session.add(new_alert)
+        await session.commit()
+    
+    await state.clear()
+    
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🗺 Открыть Радар", web_app=types.WebAppInfo(url="https://skyrent.pro/map"))]
+    ])
+    
+    await message.answer(
+        "✅ <b>Экстренная заявка зафиксирована!</b>\n\nМодераторы ОрВД уведомлены. Ваш красный маркер ЧС уже появился на глобальном Радаре SkyRent. Все свободные борты и волонтеры в радиусе 100 км получают пуш-уведомление.\n\nОжидайте связи.",
         parse_mode="HTML",
         reply_markup=kb
     )

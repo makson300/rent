@@ -4,6 +4,7 @@ import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import TopNavbar from "@/components/TopNavbar";
 import { AuthProvider } from "@/components/AuthProvider";
+import { Toaster } from "react-hot-toast";
 
 const inter = Inter({ subsets: ["latin", "cyrillic"] });
 
@@ -44,6 +45,7 @@ export default function RootLayout({
           </div>
           </div>
         </AuthProvider>
+        <Toaster position="bottom-right" />
       </body>
     </html>
   );

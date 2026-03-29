@@ -11,7 +11,7 @@ from bot.handlers import (
     education_router, sales_router, packages_router,
     search_router, seller_profile_router, operators_router,
     support_router, emergency_router, admin_emergency_router,
-    admin_advisor_router, booking_router, contract_router,
+    admin_advisor_router, admin_flight_router, booking_router, contract_router,
     job_router, job_hiring_router, orvd_router
 )
 from db.base import init_db
@@ -72,32 +72,36 @@ async def main():
     dp.include_router(emergency_router)
     dp.include_router(admin_emergency_router)
     dp.include_router(admin_advisor_router)
+    dp.include_router(admin_flight_router)
     dp.include_router(booking_router)
     dp.include_router(contract_router)
     dp.include_router(job_router)
     dp.include_router(job_hiring_router)
     dp.include_router(orvd_router)
 
-    # Установка команд меню
-    from bot.commands import set_commands
-    await set_commands(bot)
+    try:
+        from bot.commands import set_commands
+        await set_commands(bot)
+    except Exception as e:
+        logger.error(f"Failed to set bot commands: {e}")
 
     # Запуск фонового мониторинга MoMoA
     from bot.services.emergency_monitor import monitor_service
     monitor_task = asyncio.create_task(monitor_service.start())
 
     logger.info("Bot configuration ready.")
+    
+    import uvicorn
+    from web.dashboard import app
+    app.state.bot = bot
+    app.state.dp = dp
+    config = uvicorn.Config(app=app, host="0.0.0.0", port=8000)
+    server = uvicorn.Server(config)
+
     try:
         me = await bot.get_me()
         logger.info(f"Bot authorized as @{me.username} (ID: {me.id})")
         
-        import uvicorn
-        from web.dashboard import app
-        app.state.bot = bot
-        app.state.dp = dp
-        config = uvicorn.Config(app=app, host="0.0.0.0", port=8000)
-        server = uvicorn.Server(config)
-
         if USE_WEBHOOK:
             logger.info(f"Setting webhook to {WEBHOOK_URL}...")
             webhook_kwargs = {"url": WEBHOOK_URL, "drop_pending_updates": True}
@@ -109,11 +113,13 @@ async def main():
         else:
             logger.info("Bot starting polling and FastAPI server concurrently...")
             await bot.delete_webhook(drop_pending_updates=True)
-            asyncio.create_task(server.serve())
-            await dp.start_polling(bot)
+            asyncio.create_task(dp.start_polling(bot))
+            await server.serve()
             
     except Exception as e:
-        logger.error(f"Runtime error: {e}")
+        logger.error(f"Telegram connection error (check Proxy/VPN): {e}")
+        logger.info("Starting FastAPI server in FALLBACK mode (Web Map will work, Bot will be offline)...")
+        await server.serve()
     finally:
         if not USE_WEBHOOK:
             logger.info("Stopping background tasks...")

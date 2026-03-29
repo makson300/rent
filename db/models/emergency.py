@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Integer, String, Text, ForeignKey, DateTime
+from sqlalchemy import Integer, String, Text, ForeignKey, DateTime, Float
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from db.base import Base
 
@@ -15,6 +15,9 @@ class EmergencyAlert(Base):
     
     raw_text: Mapped[str] = mapped_column(Text)
     ai_summary: Mapped[str] = mapped_column(Text, nullable=True)
+    
+    lat: Mapped[float] = mapped_column(Float, nullable=True)
+    lng: Mapped[float] = mapped_column(Float, nullable=True)
     
     status: Mapped[str] = mapped_column(String(50), default="pending") # pending, approved, rejected
     

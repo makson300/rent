@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, BigInteger, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, Text, BigInteger, ForeignKey, DateTime, Float
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from db.base import Base
@@ -13,6 +13,10 @@ class Job(Base):
     category = Column(String(50), nullable=False)
     city = Column(String(100), nullable=False)
     budget = Column(String(100), nullable=False)
+    
+    lat = Column(Float, nullable=True)
+    lng = Column(Float, nullable=True)
+    
     status = Column(String(20), default="pending") # pending, active, closed, rejected
     created_at = Column(DateTime, default=datetime.utcnow)
     

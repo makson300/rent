@@ -33,9 +33,6 @@ def get_main_menu() -> ReplyKeyboardMarkup:
                 KeyboardButton(text="👤 Профиль"),
             ],
             [
-                KeyboardButton(text="👤 Профиль"),
-            ],
-            [
                 KeyboardButton(text="🗺 Карта (TMA)", web_app=WebAppInfo(url=f"{WEBAPP_URL}/map")),
                 KeyboardButton(text="🛍 Каталог (TMA)", web_app=WebAppInfo(url=f"{WEBAPP_URL}/webapp/catalog")),
             ],

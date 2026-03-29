@@ -18,6 +18,8 @@ from db.models.user import User
 from db.models.listing import Listing
 from db.models.education import EducationApplication
 from db.models.emergency import EmergencyAlert
+from db.models.flight_plan import FlightPlan
+from db.models.job import Job
 
 # Configure logging
 logging.basicConfig(
@@ -41,6 +43,10 @@ app.add_middleware(
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
+
+async def get_session():
+    async with async_session() as session:
+        yield session
 
 @app.on_event("startup")
 async def startup_event():
@@ -858,6 +864,59 @@ async def get_flight_plans(user_id: int):
     except Exception as e:
         logger.error(f"Error fetching flight plans: {e}")
         return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
+
+@app.get("/api/v1/radar/markers")
+async def get_radar_markers(session: AsyncSession = Depends(get_session)):
+    """
+    Returns a unified array of markers for the Live Map.
+    Combines: Jobs (category='job'), Emergencies (category='emergency'), and active Flight Plans (category='nofly' or 'flight').
+    """
+    markers = []
+    
+    # 1. Active Jobs
+    result_jobs = await session.execute(
+        select(Job).where(Job.status == "active", Job.lat != None, Job.lng != None)
+    )
+    for j in result_jobs.scalars().all():
+        markers.append({
+            "id": f"job_{j.id}",
+            "lat": j.lat,
+            "lng": j.lng,
+            "type": "job",
+            "title": j.title,
+            "desc": j.category,
+            "budget": j.budget
+        })
+        
+    # 2. Emergencies (SAR)
+    result_em = await session.execute(
+        select(EmergencyAlert).where(EmergencyAlert.status == "pending", EmergencyAlert.lat != None, EmergencyAlert.lng != None)
+    )
+    for e in result_em.scalars().all():
+        markers.append({
+            "id": f"em_{e.id}",
+            "lat": e.lat,
+            "lng": e.lng,
+            "type": "emergency",
+            "title": "Поиск пропавшего человека (SAR)" if not e.problem_type else e.problem_type,
+            "desc": e.raw_text[:100] + ("..." if len(e.raw_text) > 100 else "")
+        })
+        
+    # 3. Flight Plans (OrVD)
+    result_fp = await session.execute(
+        select(FlightPlan).where(FlightPlan.status.in_(["pending", "approved"]), FlightPlan.lat != None, FlightPlan.lng != None)
+    )
+    for f in result_fp.scalars().all():
+        markers.append({
+            "id": f"fp_{f.id}",
+            "lat": f.lat,
+            "lng": f.lng,
+            "type": "nofly" if f.status == "approved" else "pending_flight",
+            "title": "Согласованный полет ИВП" if f.status == "approved" else "Заявка на ИВП",
+            "desc": f"Радиус: {f.radius}м, Высота: {f.alt_max}м",
+        })
+        
+    return markers
 
 class RegistrationLeadCreate(BaseModel):
     user_id: int

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, BigInteger, ForeignKey, Boolean, Text, DateTime
+from sqlalchemy import Column, Integer, String, BigInteger, ForeignKey, Boolean, Text, DateTime, Float
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from db.base import Base
@@ -26,6 +26,10 @@ class FlightPlan(Base):
     # State tracking: 'draft', 'pending', 'approved', 'rejected'
     status = Column(String(50), default='pending')
     is_emergency = Column(Boolean, default=False)
+    
+    # Optional precise coordinates for radar maps
+    lat = Column(Float, nullable=True)
+    lng = Column(Float, nullable=True)
     
     created_at = Column(DateTime, default=datetime.utcnow)
     
