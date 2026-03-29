@@ -28,8 +28,8 @@ export default function JobFilters({ currentParams }: { currentParams: Record<st
   return (
     <div className="bg-white/5 border border-white/10 rounded-2xl p-5 sticky top-24">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-lg font-bold text-white flex items-center gap-2">
-          <Filter className="w-5 h-5 text-emerald-400" />
+        <h2 className="text-lg font-bold text-tricolor-blue flex items-center gap-2">
+          <Filter className="w-5 h-5 text-tricolor-blue" />
           Фильтры
         </h2>
         {(q || city) && (
@@ -53,7 +53,7 @@ export default function JobFilters({ currentParams }: { currentParams: Record<st
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Например: Аэрофотосъемка"
-              className="block w-full pl-10 pr-3 py-2.5 border border-white/10 rounded-xl leading-5 bg-[#0A0A0B] text-gray-300 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm transition-all shadow-inner"
+              className="block w-full pl-10 pr-3 py-2.5 border border-white/10 rounded-xl leading-5 bg-[#0A0A0B] text-gray-300 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-tricolor-blue focus:border-tricolor-blue sm:text-sm transition-all shadow-inner"
             />
           </div>
         </div>
@@ -70,7 +70,7 @@ export default function JobFilters({ currentParams }: { currentParams: Record<st
               value={city}
               onChange={(e) => setCity(e.target.value)}
               placeholder="Например: Москва"
-              className="block w-full pl-10 pr-3 py-2.5 border border-white/10 rounded-xl leading-5 bg-[#0A0A0B] text-gray-300 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm transition-all shadow-inner"
+              className="block w-full pl-10 pr-3 py-2.5 border border-white/10 rounded-xl leading-5 bg-[#0A0A0B] text-gray-300 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-tricolor-blue focus:border-tricolor-blue sm:text-sm transition-all shadow-inner"
             />
           </div>
         </div>
@@ -78,7 +78,7 @@ export default function JobFilters({ currentParams }: { currentParams: Record<st
         <div className="pt-2">
           <button
             type="submit"
-            className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-xl shadow-sm shadow-emerald-500/20 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#0A0A0B] focus:ring-emerald-500 transition-all hover:-translate-y-0.5"
+            className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-xl shadow-sm shadow-tricolor-blue/20 text-sm font-bold text-white bg-gradient-to-r from-tricolor-blue to-blue-800 hover:from-blue-600 hover:to-blue-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#0A0A0B] focus:ring-tricolor-blue transition-all hover:-translate-y-0.5"
           >
             Найти заказы
           </button>

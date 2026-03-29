@@ -909,13 +909,24 @@ async def get_radar_markers(session: AsyncSession = Depends(get_session)):
         select(FlightPlan).where(FlightPlan.status.in_(["pending", "approved"]), FlightPlan.lat != None, FlightPlan.lng != None)
     )
     for f in result_fp.scalars().all():
+        try:
+            radius_km = float(f.radius)
+        except:
+            radius_km = 1.0  # default fallback
+            
         markers.append({
             "id": f"fp_{f.id}",
             "lat": f.lat,
             "lng": f.lng,
             "type": "nofly" if f.status == "approved" else "pending_flight",
             "title": "Согласованный полет ИВП" if f.status == "approved" else "Заявка на ИВП",
-            "desc": f"Радиус: {f.radius}м, Высота: {f.alt_max}м",
+            "desc": f"С {f.time_start} по {f.time_end} | Задание: {f.task_desc}",
+            "radius_km": radius_km,
+            "alt_min": f.alt_min,
+            "alt_max": f.alt_max,
+            "time_start": f.time_start,
+            "time_end": f.time_end,
+            "operator_name": f.operator_name
         })
         
     return markers
@@ -1001,15 +1012,15 @@ async def create_flight_plan(plan: FlightPlanCreate):
             session.add(new_plan)
             await session.commit()
             await session.refresh(new_plan)
-
-        # Отправляем уведомление админам через бота (если бот запущен)
-        try:
-            bot = app.state.bot
-            if bot:
-                from bot.handlers.admin_flight import notify_admins_flight_plan
-                await notify_admins_flight_plan(bot, new_plan.id)
-        except Exception as e:
-            logger.warning(f"Could not notify admins about new flight plan: {e}")
+            
+            # Отправляем уведомление админам через бота (если бот запущен)
+            try:
+                bot = request.app.state.bot
+                if bot:
+                    from bot.handlers.admin_flight import notify_admins_flight_plan
+                    await notify_admins_flight_plan(bot, new_plan.id)
+            except Exception as e:
+                logger.warning(f"Could not notify admins about new flight plan: {e}")
 
         return JSONResponse(content={"ok": True, "plan_id": new_plan.id})
 

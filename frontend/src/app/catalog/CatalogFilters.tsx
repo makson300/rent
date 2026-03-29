@@ -39,8 +39,8 @@ export default function CatalogFilters({ currentParams }: { currentParams: Recor
   return (
     <div className="bg-white/5 border border-white/10 rounded-2xl p-5 sticky top-24">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-lg font-bold text-white flex items-center gap-2">
-          <Filter className="w-5 h-5 text-blue-400" />
+        <h2 className="text-lg font-bold text-khokhloma-gold flex items-center gap-2">
+          <Filter className="w-5 h-5 text-khokhloma-gold" />
           Фильтры
         </h2>
         {(q || city || categoryId) && (
@@ -64,7 +64,7 @@ export default function CatalogFilters({ currentParams }: { currentParams: Recor
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Название или ключевое слово..."
-              className="block w-full pl-10 pr-3 py-2.5 border border-white/10 rounded-xl leading-5 bg-[#0A0A0B] text-gray-300 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-all shadow-inner"
+              className="block w-full pl-10 pr-3 py-2.5 border border-white/10 rounded-xl leading-5 bg-[#0A0A0B] text-gray-300 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-khokhloma-gold focus:border-khokhloma-gold sm:text-sm transition-all shadow-inner"
             />
           </div>
         </div>
@@ -84,8 +84,8 @@ export default function CatalogFilters({ currentParams }: { currentParams: Recor
                     onChange={(e) => setCategoryId(e.target.value)}
                     className="peer sr-only"
                   />
-                  <div className="w-4 h-4 rounded-full border border-gray-500 group-hover:border-blue-400 peer-checked:border-blue-500 transition-colors"></div>
-                  <div className="absolute w-2 h-2 rounded-full bg-blue-500 scale-0 peer-checked:scale-100 transition-transform duration-200"></div>
+                  <div className="w-4 h-4 rounded-full border border-gray-500 group-hover:border-khokhloma-gold peer-checked:border-khokhloma-red transition-colors"></div>
+                  <div className="absolute w-2 h-2 rounded-full bg-khokhloma-red scale-0 peer-checked:scale-100 transition-transform duration-200"></div>
                 </div>
                 <span className={`ml-3 text-sm transition-colors ${categoryId === cat.id ? "text-white font-medium" : "text-gray-400 group-hover:text-gray-300"}`}>
                   {cat.name}
@@ -107,7 +107,7 @@ export default function CatalogFilters({ currentParams }: { currentParams: Recor
               value={city}
               onChange={(e) => setCity(e.target.value)}
               placeholder="Например: Москва"
-              className="block w-full pl-10 pr-3 py-2.5 border border-white/10 rounded-xl leading-5 bg-[#0A0A0B] text-gray-300 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-all shadow-inner"
+              className="block w-full pl-10 pr-3 py-2.5 border border-white/10 rounded-xl leading-5 bg-[#0A0A0B] text-gray-300 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-khokhloma-gold focus:border-khokhloma-gold sm:text-sm transition-all shadow-inner"
             />
           </div>
         </div>
@@ -115,7 +115,7 @@ export default function CatalogFilters({ currentParams }: { currentParams: Recor
         <div className="pt-2">
           <button
             type="submit"
-            className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-xl shadow-sm shadow-blue-500/20 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#0A0A0B] focus:ring-blue-500 transition-all hover:-translate-y-0.5"
+            className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-xl shadow-sm shadow-khokhloma-red/20 text-sm font-bold text-white bg-gradient-to-r from-khokhloma-gold to-khokhloma-red hover:from-yellow-500 hover:to-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#0A0A0B] focus:ring-khokhloma-gold transition-all hover:-translate-y-0.5"
           >
             Применить фильтры
           </button>

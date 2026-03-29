@@ -9,8 +9,8 @@ import { Toaster } from "react-hot-toast";
 const inter = Inter({ subsets: ["latin", "cyrillic"] });
 
 export const metadata: Metadata = {
-  title: "Sky Rent AI - Экосистема БПЛА",
-  description: "Единая платформа для беспилотной индустрии: аренда дронов, биржа пилотов, обучение и интерактивные карты.",
+  title: "Горизонт - Национальная Экосистема БАС",
+  description: "Национальная инфраструктура для индустрии БАС: легальные полёты, госзаказы, тендеры, академия и маркетплейс.",
 };
 
 export default function RootLayout({
@@ -20,7 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ru" className="dark scroll-smooth">
-      <body className={`${inter.className} bg-[#0A0A0B] text-white selection:bg-blue-500/30 overflow-hidden`}>
+      <body className={`${inter.className} bg-[#0A0A0B] text-white selection:bg-tricolor-blue/30 overflow-hidden`}>
         <AuthProvider>
           <div className="flex h-screen bg-[#0A0A0B]">
           {/* Desktop Sidebar */}
@@ -38,7 +38,7 @@ export default function RootLayout({
               {/* Footer */}
               <footer className="border-t border-white/5 bg-[#0A0A0B] py-8 mt-20">
                 <div className="max-w-7xl mx-auto px-4 text-center text-gray-500 text-sm">
-                  <p>© 2026 Sky Rent. Национальная Платформа БПЛА.</p>
+                  <p>© 2026 Национальная Экосистема БАС «Горизонт».</p>
                 </div>
               </footer>
             </main>

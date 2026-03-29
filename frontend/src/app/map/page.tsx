@@ -30,7 +30,14 @@ export default function InteractiveMapPage() {
       });
   }, []);
 
-  const filteredMarkers = markers.filter(m => filter === "all" || m.type === filter);
+  const filteredMarkers = markers.filter(m => {
+    if (filter === "all") return true;
+    if (filter === "flight_plan") return m.type === "nofly" || m.type === "pending_flight";
+    return m.type === filter;
+  });
+
+  const pinMarkers = filteredMarkers.filter(m => m.type !== 'nofly' && m.type !== 'pending_flight');
+  const zoneMarkers = filteredMarkers.filter(m => m.type === 'nofly' || m.type === 'pending_flight');
 
   /** Convert km radius to approximate pixel size based on zoom */
   const radiusToPixels = (radiusKm: number, lat: number) => {
@@ -78,6 +85,12 @@ export default function InteractiveMapPage() {
             >
               <Layers className="w-4 h-4" /> Заказы
             </button>
+            <button 
+              onClick={() => setFilter("flight_plan")} 
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all flex items-center gap-1.5 ${filter === "flight_plan" ? "bg-blue-500/20 text-blue-400 border border-blue-500/30" : "bg-white/5 text-gray-400 hover:bg-blue-500/10 hover:text-blue-400"}`}
+            >
+              <Navigation className="w-4 h-4" /> Заявки ИВП
+            </button>
           </div>
         </div>
       </div>
@@ -119,8 +132,40 @@ export default function InteractiveMapPage() {
             );
           })}
 
-          {/* === Dynamic markers === */}
-          {filteredMarkers.map((marker) => (
+          {/* === Dynamic flight plan zones === */}
+          {zoneMarkers.map((marker) => {
+            const size = radiusToPixels(marker.radius_km || 1, marker.lat);
+            const isApproved = marker.type === "nofly";
+            return (
+              <Overlay
+                key={marker.id}
+                anchor={[marker.lat, marker.lng]}
+                offset={[size, size]}
+              >
+                <div
+                  className="rounded-full cursor-pointer transition-opacity hover:opacity-80 flex items-center justify-center relative group"
+                  onClick={() => { setSelectedMarker(marker); setSelectedZone(null); }}
+                  style={{
+                    width: size * 2,
+                    height: size * 2,
+                    background: isApproved
+                      ? "rgba(59, 130, 246, 0.15)"
+                      : "rgba(107, 114, 128, 0.15)",
+                    border: isApproved
+                      ? "2px solid rgba(59, 130, 246, 0.6)"
+                      : "2px dashed rgba(168, 85, 247, 0.5)",
+                  }}
+                >
+                  <div className="absolute inset-0 m-auto w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Navigation className={`w-4 h-4 ${isApproved ? "text-blue-500" : "text-purple-400"}`} />
+                  </div>
+                </div>
+              </Overlay>
+            );
+          })}
+
+          {/* === Dynamic pin markers (Jobs, Emergencies) === */}
+          {pinMarkers.map((marker) => (
             <Overlay 
               key={marker.id} 
               anchor={[marker.lat, marker.lng]} 
@@ -134,12 +179,9 @@ export default function InteractiveMapPage() {
                   <div className="absolute -inset-2 bg-red-500/40 rounded-full animate-ping" />
                 )}
                 <div className={`w-8 h-8 rounded-full border-2 border-white shadow-xl flex items-center justify-center relative z-10 transition-transform group-hover:scale-110 ${
-                  marker.type === 'emergency' ? 'bg-red-500' :
-                  marker.type === 'nofly' ? 'bg-orange-500' : 'bg-emerald-500'
+                  marker.type === 'emergency' ? 'bg-red-500' : 'bg-emerald-500'
                 }`}>
-                  {marker.type === 'emergency' ? <AlertCircle className="w-4 h-4 text-white" /> :
-                   marker.type === 'nofly' ? <Shield className="w-4 h-4 text-white" /> :
-                   <Layers className="w-4 h-4 text-white" />}
+                  {marker.type === 'emergency' ? <AlertCircle className="w-4 h-4 text-white" /> : <Layers className="w-4 h-4 text-white" />}
                 </div>
               </div>
             </Overlay>
@@ -181,6 +223,24 @@ export default function InteractiveMapPage() {
             </div>
             <h3 className="text-lg font-bold text-white mb-2">{selectedMarker.title}</h3>
             <p className="text-gray-400 text-sm mb-4">{selectedMarker.desc}</p>
+            
+            {(selectedMarker.type === 'nofly' || selectedMarker.type === 'pending_flight') && (
+              <div className="bg-white/5 border border-white/10 rounded-lg p-3 mb-4 text-sm font-mono text-gray-300">
+                <div className="flex justify-between mb-1">
+                  <span className="text-gray-500">Высота:</span>
+                  <span>{selectedMarker.alt_min || 0}m - {selectedMarker.alt_max}m</span>
+                </div>
+                <div className="flex justify-between mb-1">
+                  <span className="text-gray-500">Оператор:</span>
+                  <span>{selectedMarker.operator_name || 'Неизвестен'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Радиус:</span>
+                  <span className="text-blue-400 font-bold">{selectedMarker.radius_km} км</span>
+                </div>
+              </div>
+            )}
+
             {selectedMarker.budget && (
               <div className="text-emerald-400 font-mono font-bold mb-4">Бюджет: {selectedMarker.budget}</div>
             )}

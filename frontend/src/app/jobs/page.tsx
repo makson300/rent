@@ -32,12 +32,14 @@ export default async function Jobs({
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="flex flex-col md:flex-row justify-between items-baseline mb-8 border-b border-white/5 pb-4">
+      <div className="flex flex-col md:flex-row justify-between items-baseline mb-8 border-b border-white/5 pb-4 relative">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-tricolor-blue rounded-full mix-blend-screen filter blur-[100px] opacity-10 pointer-events-none"></div>
         <div>
-          <h1 className="text-3xl font-extrabold text-white">Биржа Услуг</h1>
-          <p className="text-gray-400 mt-2">Заказы, фриланс и проектные работы для пилотов 🚁</p>
+          <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-tricolor-blue tracking-tight uppercase">Биржа Работ и Тендеры</h1>
+          <p className="text-gray-400 mt-2">Официальные заказы, государственные контракты и B2B услуги</p>
         </div>
-        <p className="text-gray-400 mt-4 md:mt-0 bg-blue-500/10 px-3 py-1 rounded-full text-sm font-medium border border-blue-500/20 text-blue-400">
+        <p className="text-gray-300 mt-4 md:mt-0 bg-tricolor-blue/10 px-4 py-1.5 rounded-full text-sm font-bold border border-tricolor-blue/30 flex items-center gap-2 shadow-[0_0_15px_rgba(0,57,166,0.2)]">
+          <span className="w-2 h-2 rounded-full bg-tricolor-blue animate-pulse"></span>
           Актуально заданий: {jobs.length}
         </p>
       </div>
@@ -60,13 +62,14 @@ export default async function Jobs({
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
               {jobs.map((job: any) => (
-                <div key={job.id} className="relative bg-white/5 border border-white/10 p-6 rounded-2xl hover:bg-white/10 transition-colors flex flex-col group hover:-translate-y-1 hover:shadow-xl hover:shadow-emerald-500/10 cursor-pointer">
-                  <div className="mb-4">
-                    <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold tracking-wide bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase">
+                <div key={job.id} className="relative bg-[#111111]/90 border border-white/5 p-6 rounded-2xl hover:bg-white/5 transition-colors flex flex-col group hover:-translate-y-1 hover:shadow-xl hover:shadow-tricolor-blue/10 hover:border-tricolor-blue/30 cursor-pointer overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-tricolor-blue/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  <div className="mb-4 relative z-10">
+                    <span className="inline-block px-3 py-1 rounded-full text-xs font-semibold tracking-wide bg-tricolor-blue/15 text-white border border-tricolor-blue/40 uppercase shadow-sm">
                       {job.category}
                     </span>
                   </div>
-                  <h3 className="text-xl font-bold text-white mb-3 line-clamp-2 leading-snug group-hover:text-emerald-400 transition-colors">{job.title}</h3>
+                  <h3 className="text-xl font-bold text-white mb-3 line-clamp-2 leading-snug group-hover:text-blue-200 transition-colors relative z-10">{job.title}</h3>
                   <p className="text-gray-400 text-sm mb-6 line-clamp-3 leading-relaxed flex-1">
                     {job.description}
                   </p>
@@ -81,11 +84,11 @@ export default async function Jobs({
                     </div>
                   </div>
                   
-                  <div className="flex items-end justify-between mt-auto pt-4 border-t border-white/5">
-                    <div className="font-mono text-xl font-bold text-white">
+                  <div className="flex items-end justify-between mt-auto pt-4 border-t border-white/5 relative z-10">
+                    <div className="font-mono text-2xl font-bold text-white drop-shadow-md">
                       {job.budget}
                     </div>
-                    <button className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-medium shadow-lg shadow-emerald-500/20 transition-all opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0">
+                    <button className="bg-gradient-to-r from-tricolor-blue to-blue-800 hover:from-blue-600 hover:to-blue-900 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-tricolor-blue/30 transition-all opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0">
                       Откликнуться
                     </button>
                   </div>

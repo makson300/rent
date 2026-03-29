@@ -25,10 +25,10 @@ export default function DashboardPage() {
       <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-white mb-2">Личный кабинет</h1>
-          <p className="text-gray-400">Добро пожаловать в панель управления экосистемой SkyRent</p>
+          <p className="text-gray-400">Добро пожаловать в панель управления экосистемой «Горизонт»</p>
         </div>
         <div className="mt-4 md:mt-0 flex space-x-4">
-          <Link href="/catalog/create" className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors flex items-center shadow-lg shadow-blue-500/20">
+          <Link href="/catalog/create" className="px-5 py-2.5 bg-gradient-to-r from-khokhloma-gold to-khokhloma-red hover:from-yellow-500 hover:to-red-600 text-white text-sm font-bold rounded-xl transition-all hover:-translate-y-0.5 flex items-center shadow-lg shadow-khokhloma-red/20">
             <Plus className="w-4 h-4 mr-2" />
             Добавить Технику
           </Link>
@@ -36,14 +36,15 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        {/* Profile Card */}
-        <div className="col-span-1 md:col-span-2 bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-sm">
-          <div className="flex items-start gap-6">
-            <div className="w-24 h-24 rounded-2xl bg-gradient-to-tr from-blue-500/20 to-cyan-500/20 flex items-center justify-center border border-white/10 overflow-hidden">
+        <div className="col-span-1 md:col-span-2 bg-[#111111]/90 border border-white/5 rounded-2xl p-6 backdrop-blur-xl shadow-2xl relative overflow-hidden group hover:border-khokhloma-gold/30 transition-colors">
+          <div className="absolute inset-0 bg-pattern-khokhloma opacity-20 pointer-events-none"></div>
+          <div className="absolute top-0 right-0 w-64 h-64 bg-khokhloma-gold/5 rounded-full filter blur-[80px] pointer-events-none"></div>
+          <div className="flex items-start gap-6 relative z-10">
+            <div className="w-24 h-24 rounded-2xl bg-gradient-to-tr from-khokhloma-red/20 to-khokhloma-gold/20 flex items-center justify-center border border-khokhloma-gold/20 overflow-hidden shadow-inner backdrop-blur-md">
               {user.photo_url ? (
                 <img src={user.photo_url} alt="Profile" className="w-full h-full object-cover" />
               ) : (
-                <span className="text-3xl font-bold text-blue-400">{user.first_name?.[0]}</span>
+                <span className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-br from-khokhloma-gold to-yellow-600 drop-shadow-sm">{user.first_name?.[0]}</span>
               )}
             </div>
             <div className="flex-1">
@@ -87,38 +88,38 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Balance Card */}
-        <div className="col-span-1 bg-gradient-to-br from-blue-900/40 to-[#0A0A0B] border border-blue-500/20 rounded-2xl p-6 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/20 rounded-full mix-blend-screen filter blur-3xl" />
+        <div className="col-span-1 bg-gradient-to-br from-[#1a1a1a] to-[#0A0A0B] border border-white/5 hover:border-khokhloma-red/30 rounded-2xl p-6 relative overflow-hidden transition-colors shadow-2xl">
+          <div className="absolute inset-0 bg-pattern-khokhloma opacity-10 pointer-events-none"></div>
+          <div className="absolute top-0 right-0 w-32 h-32 bg-khokhloma-red/10 rounded-full mix-blend-screen filter blur-3xl pointer-events-none" />
           
-          <h3 className="text-lg font-bold text-white mb-6">Баланс</h3>
+          <h3 className="text-lg font-bold text-gray-300 mb-6 uppercase tracking-wider text-xs relative z-10">Баланс Счета</h3>
           
-          <div className="mb-6">
-            <span className="text-4xl font-black text-white">0 <span className="text-xl text-gray-400 font-medium">₽</span></span>
+          <div className="mb-6 relative z-10">
+            <span className="text-4xl font-extrabold text-white drop-shadow-md">0 <span className="text-xl text-khokhloma-gold font-medium">₽</span></span>
           </div>
           
           <div className="flex gap-3">
-            <button className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors text-center shadow-lg shadow-blue-500/20">
+            <button className="flex-1 py-2.5 bg-white/5 border border-white/10 hover:border-khokhloma-gold/50 hover:bg-khokhloma-gold/10 text-white text-sm font-bold rounded-xl transition-all text-center">
               Пополнить
             </button>
           </div>
         </div>
       </div>
 
-      <h2 className="text-xl font-bold text-white mb-4">Быстрый доступ</h2>
+      <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><div className="w-1.5 h-6 bg-khokhloma-gold rounded-full"></div>Быстрый доступ</h2>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Link href="/dashboard/tasks" className="bg-white/5 hover:bg-white/10 border border-white/5 rounded-2xl p-4 flex flex-col items-center justify-center text-center transition-all hover:-translate-y-1 cursor-pointer">
-          <div className="w-12 h-12 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center mb-3">
+        <Link href="/dashboard/tasks" className="bg-[#111111]/80 hover:bg-[#1a1a1a] border border-white/5 hover:border-khokhloma-gold/30 rounded-2xl p-4 flex flex-col items-center justify-center text-center transition-all hover:-translate-y-1 cursor-pointer">
+          <div className="w-12 h-12 rounded-xl bg-khokhloma-gold/10 text-khokhloma-gold flex items-center justify-center mb-3">
             <FileText className="w-6 h-6" />
           </div>
-          <span className="font-semibold text-white">Мои Задачи</span>
+          <span className="font-bold text-white">Мои Задачи</span>
           <span className="text-xs text-gray-400 mt-1">Актуальные работы</span>
         </Link>
-        <Link href="/dashboard/orvd" className="bg-white/5 hover:bg-white/10 border border-white/5 rounded-2xl p-4 flex flex-col items-center justify-center text-center transition-all hover:-translate-y-1 cursor-pointer">
-          <div className="w-12 h-12 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center mb-3">
+        <Link href="/dashboard/orvd" className="bg-[#111111]/80 hover:bg-[#1a1a1a] border border-white/5 hover:border-khokhloma-red/30 rounded-2xl p-4 flex flex-col items-center justify-center text-center transition-all hover:-translate-y-1 cursor-pointer">
+          <div className="w-12 h-12 rounded-xl bg-khokhloma-red/10 text-khokhloma-red flex items-center justify-center mb-3">
             <ShieldAlert className="w-6 h-6" />
           </div>
-          <span className="font-semibold text-white">ОрВД (Планы)</span>
+          <span className="font-bold text-white">ОрВД (Планы)</span>
           <span className="text-xs text-gray-400 mt-1">Генератор запросов</span>
         </Link>
       </div>

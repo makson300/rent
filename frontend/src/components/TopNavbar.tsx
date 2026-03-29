@@ -10,8 +10,8 @@ export default function TopNavbar() {
         <button className="mr-4 text-gray-300 hover:text-white">
           <Menu className="h-6 w-6" />
         </button>
-        <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-cyan-400">
-          Sky Rent
+        <span className="text-lg font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-khokhloma-gold to-khokhloma-red flex items-center gap-2">
+          ГОРИЗОНТ
         </span>
       </div>
       <div>

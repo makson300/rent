@@ -15,15 +15,15 @@ import {
 } from "lucide-react";
 
 const NAV_ITEMS = [
-  { name: "Главная", href: "/", icon: Home },
-  { name: "Каталог & Магазин", href: "/catalog", icon: ShoppingCart },
-  { name: "Биржа услуг", href: "/jobs", icon: Briefcase },
-  { name: "Мои Задачи", href: "/dashboard/tasks", icon: FileText },
-  { name: "Карта (Зоны)", href: "/map", icon: Map },
-  { name: "Радар ЧП", href: "/map", icon: ShieldAlert },
-  { name: "Обучение", href: "/education", icon: GraduationCap },
-  { name: "Правовой Хаб", href: "/dashboard/legal", icon: Scale },
-  { name: "Профиль", href: "/dashboard", icon: UserCircle },
+  { name: "Главная", href: "/", icon: Home, theme: "khokhloma" },
+  { name: "Биржа работ", href: "/jobs", icon: Briefcase, theme: "tricolor" },
+  { name: "Тендеры", href: "/tenders", icon: FileText, theme: "tricolor" },
+  { name: "Аэронавигация", href: "/map", icon: Map, theme: "khokhloma" },
+  { name: "ЧС Радар", href: "/map?filter=emergency", icon: ShieldAlert, theme: "khokhloma" },
+  { name: "Гос. Услуги", href: "/dashboard/legal", icon: Scale, theme: "tricolor" },
+  { name: "Академия БАС", href: "/education", icon: GraduationCap, theme: "tricolor" },
+  { name: "Маркетплейс", href: "/catalog", icon: ShoppingCart, theme: "khokhloma" },
+  { name: "Личный Кабинет", href: "/dashboard", icon: UserCircle, theme: "khokhloma" },
 ];
 
 export default function Sidebar() {
@@ -31,13 +31,17 @@ export default function Sidebar() {
 
   return (
     <aside className="w-64 bg-[#0A0A0B]/95 border-r border-white/5 h-screen sticky top-0 flex flex-col hidden md:flex">
-      <div className="h-16 flex items-center px-6 border-b border-white/5">
-        <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-cyan-400">
-          Sky Rent
-        </span>
-        <span className="ml-2 text-xs font-medium px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
-          SUPER-APP
-        </span>
+      <div className="h-20 flex items-center px-6 border-b border-white/5 relative overflow-hidden">
+        {/* Decorative background glow for the logo */}
+        <div className="absolute top-0 right-0 w-24 h-full bg-khokhloma-red/20 blur-2xl"></div>
+        <div className="relative z-10 flex flex-col">
+          <span className="text-xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-khokhloma-gold to-khokhloma-red flex items-center gap-2">
+            ГОРИЗОНТ 🇷🇺
+          </span>
+          <span className="text-[10px] font-bold tracking-widest text-gray-400 uppercase mt-0.5">
+            НАЦИОНАЛЬНАЯ ЭКОСИСТЕМА БАС
+          </span>
+        </div>
       </div>
 
       <nav className="flex-1 px-4 py-8 space-y-2 overflow-y-auto">
@@ -45,27 +49,40 @@ export default function Sidebar() {
           const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
           const Icon = item.icon;
           
+          let activeStyles = "";
+          let iconActiveStyles = "";
+          
+          if (isActive) {
+            if (item.theme === "khokhloma") {
+              activeStyles = "bg-khokhloma-red/10 text-khokhloma-gold border border-khokhloma-red/20";
+              iconActiveStyles = "text-khokhloma-gold";
+            } else {
+              activeStyles = "bg-tricolor-blue/10 text-tricolor-white border border-tricolor-blue/30";
+              iconActiveStyles = "text-tricolor-blue";
+            }
+          } else {
+            activeStyles = "text-gray-400 hover:bg-white/5 hover:text-white border border-transparent";
+            iconActiveStyles = "text-gray-500";
+          }
+          
           return (
             <Link
               key={item.name}
               href={item.href}
-              className={`flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all ${
-                isActive
-                  ? "bg-blue-500/10 text-blue-400"
-                  : "text-gray-400 hover:bg-white/5 hover:text-white"
-              }`}
+              className={`flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all ${activeStyles}`}
             >
-              <Icon className={`mr-3 h-5 w-5 ${isActive ? "text-blue-400" : "text-gray-500"}`} />
+              <Icon className={`mr-3 h-5 w-5 ${iconActiveStyles}`} />
               {item.name}
             </Link>
           );
         })}
       </nav>
 
-      <div className="p-4 border-t border-white/5">
-        <div className="bg-gradient-to-tr from-blue-900/40 to-cyan-900/40 border border-blue-500/20 rounded-xl p-4 text-center">
-          <p className="text-xs text-blue-300 font-medium mb-1">Легальные Полеты</p>
-          <Link href="/dashboard/legal" className="block w-full py-2 text-xs font-semibold bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors">
+      <div className="p-4 border-t border-white/5 relative overflow-hidden">
+        <div className="absolute inset-0 bg-pattern-tricolor opacity-50"></div>
+        <div className="bg-gradient-to-tr from-tricolor-blue/30 to-tricolor-blue/10 border border-tricolor-blue/30 rounded-xl p-4 text-center relative z-10">
+          <p className="text-xs text-tricolor-white font-medium mb-1 tracking-wide uppercase">ЕС ОрВД России</p>
+          <Link href="/dashboard/legal" className="block w-full py-2.5 text-xs font-bold bg-tricolor-blue hover:bg-blue-800 text-white rounded-lg transition-colors shadow-lg shadow-tricolor-blue/20">
             Согласовать полет
           </Link>
         </div>
