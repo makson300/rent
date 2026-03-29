@@ -131,9 +131,24 @@ export default async function ListingDetail({ params }: { params: { id: string }
             </div>
 
             <div className="mt-6 pt-6 border-t border-white/10">
-              <div className="flex items-center gap-3 text-sm text-emerald-400 bg-emerald-500/10 p-4 rounded-xl border border-emerald-500/20">
-                <ShieldCheck className="w-6 h-6 shrink-0" />
-                <p>Безопасная сделка доступна для пользователей с премиум-подпиской.</p>
+              <div className="flex flex-col gap-4">
+                <div className="flex items-start gap-3 text-sm text-emerald-400 bg-emerald-500/10 p-4 rounded-xl border border-emerald-500/20">
+                  <ShieldCheck className="w-6 h-6 shrink-0" />
+                  <p>Безопасная сделка доступна для пользователей с премиум-подпиской.</p>
+                </div>
+                
+                <div className="flex items-center justify-between p-4 rounded-xl bg-orange-900/20 border border-orange-500/30 group cursor-pointer hover:bg-orange-800/30 transition-all">
+                  <div className="flex items-center gap-3">
+                    <ShieldCheck className="w-8 h-8 text-orange-400" />
+                    <div>
+                      <h4 className="text-white font-bold text-sm">Страхование ГО в 1 клик</h4>
+                      <p className="text-xs text-orange-200/70">От 990 ₽ на время аренды</p>
+                    </div>
+                  </div>
+                  <div className="text-orange-400 text-xs font-bold bg-orange-500/10 px-3 py-1.5 rounded-lg group-hover:bg-orange-500 group-hover:text-white transition-all">
+                    Оформить
+                  </div>
+                </div>
               </div>
             </div>
 
