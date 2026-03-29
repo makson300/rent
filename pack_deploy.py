@@ -1,7 +1,7 @@
 import zipfile
 import os
 
-EXCLUDE_DIRS = {'.git', 'venv', '.venv', '__pycache__', '.gemini'}
+EXCLUDE_DIRS = {'.git', 'venv', '.venv', '__pycache__', '.gemini', '.next', 'node_modules', 'tmp'}
 EXCLUDE_FILES = {
     'deploy.py', 'deploy.zip', 'deploy.tar.gz', 'test_ssh.py',
     'rentbot.db', 'rentbot.db-journal', 'db.sqlite3',

@@ -8,6 +8,8 @@ from fastapi import FastAPI, Request, Depends, HTTPException, status, Form
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy import select, func, or_
+from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import BaseModel
 from aiogram.types import Update
 
 # Add project root to path to import db and bot
@@ -943,6 +945,112 @@ async def create_registration_lead(lead: RegistrationLeadCreate):
             return JSONResponse(content={"ok": True})
     except Exception as e:
         logger.error(f"Error creating lead: {e}")
+        return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
+
+
+class FlightPlanCreate(BaseModel):
+    user_id: int
+    coords: str
+    radius: str
+    alt_min: str
+    alt_max: str
+    time_start: str
+    time_end: str
+    task_desc: str
+    operator_name: str
+    phone: str
+    shr_code: str
+    is_emergency: bool = False
+    lat: float | None = None
+    lng: float | None = None
+
+
+@app.post("/api/v1/flight_plans")
+async def create_flight_plan(plan: FlightPlanCreate):
+    """
+    Создание плана полёта через веб-форму (ОрВД).
+    После сохранения — уведомление всех админов через бота.
+    """
+    try:
+        async with async_session() as session:
+            # Находим пользователя по telegram_id (user_id из фронта — это Telegram ID)
+            result = await session.execute(
+                select(User).where(User.telegram_id == plan.user_id)
+            )
+            user = result.scalar_one_or_none()
+            if not user:
+                return JSONResponse(status_code=404, content={"ok": False, "error": "User not found"})
+
+            new_plan = FlightPlan(
+                user_id=user.id,
+                coords=plan.coords,
+                radius=plan.radius,
+                alt_min=plan.alt_min,
+                alt_max=plan.alt_max,
+                time_start=plan.time_start,
+                time_end=plan.time_end,
+                task_desc=plan.task_desc,
+                operator_name=plan.operator_name,
+                phone=plan.phone,
+                shr_code=plan.shr_code,
+                is_emergency=plan.is_emergency,
+                lat=plan.lat,
+                lng=plan.lng,
+                status="pending",
+            )
+            session.add(new_plan)
+            await session.commit()
+            await session.refresh(new_plan)
+
+        # Отправляем уведомление админам через бота (если бот запущен)
+        try:
+            bot = app.state.bot
+            if bot:
+                from bot.handlers.admin_flight import notify_admins_flight_plan
+                await notify_admins_flight_plan(bot, new_plan.id)
+        except Exception as e:
+            logger.warning(f"Could not notify admins about new flight plan: {e}")
+
+        return JSONResponse(content={"ok": True, "plan_id": new_plan.id})
+
+    except Exception as e:
+        logger.error(f"Error creating flight plan: {e}")
+        return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
+
+
+@app.get("/api/v1/my_flight_plans/{telegram_id}")
+async def get_my_flight_plans(telegram_id: int, session: AsyncSession = Depends(get_session)):
+    """Получение списка своих планов полётов по Telegram ID."""
+    try:
+        result = await session.execute(
+            select(User).where(User.telegram_id == telegram_id)
+        )
+        user = result.scalar_one_or_none()
+        if not user:
+            return JSONResponse(content=[])
+
+        result = await session.execute(
+            select(FlightPlan)
+            .where(FlightPlan.user_id == user.id)
+            .order_by(FlightPlan.created_at.desc())
+            .limit(20)
+        )
+        plans = result.scalars().all()
+
+        return [
+            {
+                "id": p.id,
+                "coords": p.coords,
+                "radius": p.radius,
+                "task_desc": p.task_desc,
+                "status": p.status,
+                "created_at": p.created_at.isoformat(),
+                "is_emergency": p.is_emergency,
+            }
+            for p in plans
+        ]
+    except Exception as e:
+        logger.error(f"Error fetching flight plans: {e}")
         return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
 
 
