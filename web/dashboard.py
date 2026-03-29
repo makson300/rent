@@ -859,6 +859,33 @@ async def get_flight_plans(user_id: int):
         logger.error(f"Error fetching flight plans: {e}")
         return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
 
+class RegistrationLeadCreate(BaseModel):
+    user_id: int
+    drone_brand_model: str
+    serial_number: str
+
+@app.post("/api/v1/lead_registration")
+async def create_registration_lead(lead: RegistrationLeadCreate):
+    """Логирование факта генерации бланка Росавиации для дальнейшего прогрева лида"""
+    try:
+        from db.models.log import UserActionLog
+        async with async_session() as session:
+            # Логируем как обычное действие (или создали бы отдельную таблицу, но пока хватит лога)
+            new_log = UserActionLog(
+                user_id=lead.user_id,
+                action_type="rosaviatsiya_pdf_generated",
+                details=f"Сгенерировано заявление на постановку на учет: {lead.drone_brand_model} (SN: {lead.serial_number})"
+            )
+            session.add(new_log)
+            await session.commit()
+            
+            # TODO: Можно отправить уведомление менеджеру в Telegram.
+            
+            return JSONResponse(content={"ok": True})
+    except Exception as e:
+        logger.error(f"Error creating lead: {e}")
+        return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
+
 
 if __name__ == "__main__":
     # Use the filename "dashboard" for uvicorn string reference

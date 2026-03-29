@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Copy, Navigation, CheckCircle2, ShieldAlert, Save } from "lucide-react";
 
-export default function OrvdGenerator() {
+export default function OrvdTab() {
   const [copied, setCopied] = useState(false);
   const [formData, setFormData] = useState({
     coords: "ZZZZ",
@@ -82,15 +82,15 @@ export default function OrvdGenerator() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-extrabold text-white mb-2 flex items-center gap-3">
-          <Navigation className="w-8 h-8 text-indigo-400" />
+    <div className="w-full">
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-white mb-2 flex items-center gap-3">
+          <Navigation className="w-6 h-6 text-indigo-400" />
           Генератор Плана Полета (ИВП)
-        </h1>
-        <p className="text-gray-400 max-w-2xl">
+        </h2>
+        <p className="text-gray-400 max-w-2xl text-sm">
           Автоматическое формирование заявки на Местный Режим Исполнения Воздушного Пространства (ЕС ОрВД). 
-          Сформированный код необходимо отправить в систему SPPI или региональный зональный центр.
+          Сформированный код необходимо отправить в систему SPPI или региональный зональный центр (не позднее чем за 3 суток).
         </p>
       </div>
 
@@ -196,15 +196,6 @@ export default function OrvdGenerator() {
                   className="w-full px-4 py-2 bg-[#0A0A0B] border border-white/10 rounded-xl text-white focus:ring-1 focus:ring-indigo-500 focus:outline-none"
                 />
               </div>
-            </div>
-          </div>
-
-          <div className="mt-8 pt-6 border-t border-white/10">
-            <div className="flex items-start gap-4 p-4 rounded-2xl bg-indigo-900/20 border border-indigo-500/20">
-              <ShieldAlert className="w-6 h-6 text-indigo-400 shrink-0" />
-              <p className="text-sm text-indigo-200/80">
-                Заявка на местный режим должна подаваться не позднее чем за 3 суток до планируемого полета (если иное не предусмотрено правилами ЗЦ).
-              </p>
             </div>
           </div>
         </div>

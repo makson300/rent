@@ -10,7 +10,8 @@ import {
   GraduationCap, 
   ShieldAlert, 
   FileText, 
-  UserCircle 
+  UserCircle,
+  Scale
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { name: "Карта (Зоны)", href: "/map", icon: Map },
   { name: "Радар ЧП", href: "/radar", icon: ShieldAlert },
   { name: "Обучение", href: "/education", icon: GraduationCap },
+  { name: "Правовой Хаб", href: "/dashboard/legal", icon: Scale },
   { name: "Профиль", href: "/dashboard", icon: UserCircle },
 ];
 
@@ -62,8 +64,8 @@ export default function Sidebar() {
 
       <div className="p-4 border-t border-white/5">
         <div className="bg-gradient-to-tr from-blue-900/40 to-cyan-900/40 border border-blue-500/20 rounded-xl p-4 text-center">
-          <p className="text-xs text-blue-300 font-medium mb-1">Генерация ИВП</p>
-          <Link href="/dashboard/orvd" className="block w-full py-2 text-xs font-semibold bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors">
+          <p className="text-xs text-blue-300 font-medium mb-1">Легальные Полеты</p>
+          <Link href="/dashboard/legal" className="block w-full py-2 text-xs font-semibold bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors">
             Согласовать полет
           </Link>
         </div>

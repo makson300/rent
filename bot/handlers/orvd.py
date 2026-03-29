@@ -9,6 +9,36 @@ from db.models.flight_plan import FlightPlan
 router = Router()
 logger = logging.getLogger(__name__)
 
+@router.callback_query(F.data == "legal_hub")
+async def legal_hub_menu(callback: types.CallbackQuery):
+    """Главное меню Правового Хаба"""
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🇷🇺 Учет БВС (Росавиация)", callback_data="legal_rosaviatsiya")],
+        [InlineKeyboardButton(text="🛩 Моя Аэронавигация (ИВП)", callback_data="my_orvd")],
+        [InlineKeyboardButton(text="📖 База Законов и Карты", web_app=types.WebAppInfo(url="https://skyrent.pro/dashboard/legal"))],
+        [InlineKeyboardButton(text="🔙 В профиль", callback_data="back_to_profile")]
+    ])
+    
+    await callback.message.edit_text(
+        "⚖️ <b>Правовой Хаб Пилота</b>\n\nЗдесь вы можете подготовить документы для Росавиации, подать заявки на ИВП (Местный Режим) и следить за их статусом.",
+        parse_mode="HTML",
+        reply_markup=kb
+    )
+
+@router.callback_query(F.data == "legal_rosaviatsiya")
+async def legal_rosaviatsiya_menu(callback: types.CallbackQuery):
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📝 Открыть Генератор Заявления", web_app=types.WebAppInfo(url="https://skyrent.pro/dashboard/legal"))],
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="legal_hub")]
+    ])
+    
+    await callback.message.edit_text(
+        "🇷🇺 <b>Учет БВС в Росавиации</b>\n\nВсе дроны от 150 грамм подлежат учету. Мы подготовили бесплатный инструмент, который прямо в вашем смартфоне/на ПК сгенерирует правильное Заявление."
+        "\n\nПросто нажмите кнопку ниже, заполните данные, распечатайте готовый PDF и отправьте почтой в Росавиацию!",
+        parse_mode="HTML",
+        reply_markup=kb
+    )
+
 @router.callback_query(F.data == "my_orvd")
 async def my_orvd_menu(callback: types.CallbackQuery):
     """Меню управления аэронавигацией и заявками"""
@@ -43,8 +73,8 @@ async def my_orvd_menu(callback: types.CallbackQuery):
             
     kb_list = [
         [InlineKeyboardButton(text="🚨 ЭКСТРЕННАЯ SAR ЗАЯВКА", callback_data="orvd_emergency")],
-        [InlineKeyboardButton(text="Сформировать новый план (Web)", web_app=types.WebAppInfo(url="https://skyrent.pro/dashboard/orvd"))],
-        [InlineKeyboardButton(text="🔙 Назад в профиль", callback_data="back_to_profile")]
+        [InlineKeyboardButton(text="Сформировать новый план (Web)", web_app=types.WebAppInfo(url="https://skyrent.pro/dashboard/legal"))],
+        [InlineKeyboardButton(text="🔙 Назад", callback_data="legal_hub")]
     ]
     
     await callback.message.edit_text(
