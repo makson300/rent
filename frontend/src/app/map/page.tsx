@@ -17,7 +17,7 @@ export default function InteractiveMapPage() {
   const [zoom, setZoom] = useState(10);
 
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/api/v1/radar/markers`)
+    fetch(`${process.env.NEXT_PUBLIC_API_URL ?? ""}/api/v1/radar/markers`)
       .then(r => r.json())
       .then(data => {
         setMarkers(data);
