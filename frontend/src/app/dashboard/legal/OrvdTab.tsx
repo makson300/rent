@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Copy, Navigation, CheckCircle2, Save, MapPin, Clock, RefreshCw } from "lucide-react";
 import { toast } from "react-hot-toast";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 const STATUS_LABELS: Record<string, { text: string; color: string }> = {
   pending:  { text: "⏳ Ожидание",  color: "text-yellow-400" },

@@ -20,7 +20,7 @@ const NAV_ITEMS = [
   { name: "Биржа услуг", href: "/jobs", icon: Briefcase },
   { name: "Мои Задачи", href: "/dashboard/tasks", icon: FileText },
   { name: "Карта (Зоны)", href: "/map", icon: Map },
-  { name: "Радар ЧП", href: "/radar", icon: ShieldAlert },
+  { name: "Радар ЧП", href: "/map", icon: ShieldAlert },
   { name: "Обучение", href: "/education", icon: GraduationCap },
   { name: "Правовой Хаб", href: "/dashboard/legal", icon: Scale },
   { name: "Профиль", href: "/dashboard", icon: UserCircle },
