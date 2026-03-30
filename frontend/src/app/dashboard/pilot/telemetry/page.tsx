@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { CloudRain, UploadCloud, CheckCircle2, AlertCircle, FileText, Loader2 } from "lucide-react";
+import DroneLoader from "@/components/DroneLoader";
 import { toast } from "react-hot-toast";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
@@ -170,9 +171,7 @@ export default function TelemetryUploadPage() {
                     >
                         {loading ? (
                             <div className="flex flex-col items-center">
-                                <Loader2 className="w-16 h-16 text-khokhloma-gold animate-spin mb-4" />
-                                <p className="text-white font-bold text-lg animate-pulse">Анализ телеметрии нейросетью...</p>
-                                <p className="text-gray-500 text-sm mt-2">Читаем контрольные суммы и полетное время</p>
+                                <DroneLoader text="Анализ телеметрии нейросетью..." subtext="Читаем контрольные суммы и полетное время" color="gold" size="lg" />
                             </div>
                         ) : file ? (
                             <div className="flex flex-col items-center w-full">

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Briefcase, Building2, MapPin, Calendar, Banknote, ShieldCheck, FileCheck, ArrowRight, Loader2, Cpu } from "lucide-react";
+import DroneLoader from "@/components/DroneLoader";
 import { toast } from "react-hot-toast";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
@@ -161,8 +162,7 @@ export default function TendersPage() {
 
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 text-indigo-500">
-          <Loader2 className="w-12 h-12 animate-spin mb-4" />
-          <p>Загрузка Реестра контрактов...</p>
+          <DroneLoader text="Синхронизация..." subtext="Загрузка Реестра B2G контрактов" color="blue" />
         </div>
       ) : tenders.length === 0 ? (
         <div className="text-center py-20 bg-white/5 rounded-2xl border border-white/10">
