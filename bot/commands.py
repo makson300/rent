@@ -8,18 +8,19 @@ async def set_commands(bot: Bot):
         BotCommand(command="menu", description="📱 Главное меню"),
         BotCommand(command="search", description="🔍 Поиск техники"),
         BotCommand(command="profile", description="👤 Личный кабинет"),
+        BotCommand(command="tariffs", description="💎 Тарифы и оплата"),
         BotCommand(command="admin", description="🛠 Админка"),
     ]
 
     await bot.set_my_commands(commands, BotCommandScopeDefault())
-    
+
     # Установка глобальной кнопки меню (Слева от поля ввода)
     try:
         if WEBAPP_URL:
             await bot.set_chat_menu_button(
                 menu_button=MenuButtonWebApp(
-                    type="web_app", 
-                    text="SkyRent", 
+                    type="web_app",
+                    text="Горизонт",
                     web_app=WebAppInfo(url=WEBAPP_URL)
                 )
             )

@@ -13,6 +13,10 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy source code
 COPY . .
 
+# Copy entrypoint and make it executable
+COPY docker-entrypoint.sh .
+RUN chmod +x docker-entrypoint.sh
+
 # Create a non-root user and switch to it for security
 RUN umask 0002 && \
     useradd -m botuser && \
@@ -23,5 +27,6 @@ USER botuser
 # Expose web port
 EXPOSE 8000
 
-# Run the application
+# Run the application via entrypoint
+ENTRYPOINT ["./docker-entrypoint.sh"]
 CMD ["python", "main.py"]

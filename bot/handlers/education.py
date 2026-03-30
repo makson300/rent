@@ -4,7 +4,13 @@ from aiogram.fsm.context import FSMContext
 from bot.keyboards import get_main_menu
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from bot.states.education import EducationApplyStates
+from aiogram.fsm.state import State, StatesGroup
 
+class EducationTestStates(StatesGroup):
+    q1 = State()
+    q2 = State()
+    q3 = State()
+    score = State()
 router = Router()
 logger = logging.getLogger(__name__)
 
@@ -15,6 +21,7 @@ async def education_main(message: types.Message):
     """Главный экран раздела Обучение"""
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📚 База знаний", callback_data="edu_base")],
+        [InlineKeyboardButton(text="🎓 Пройти ИИ-Тест (Сертификат)", callback_data="edu_test_start")],
         [InlineKeyboardButton(text="💼 Обучение профессии", callback_data="edu_pro")],
         [InlineKeyboardButton(text="👶 Для детей (Offline MSK)", callback_data="edu_kids")]
     ])
@@ -139,6 +146,105 @@ async def edu_back(callback: types.CallbackQuery):
     await callback.answer()
 
 # --- ПРАВИЛА ---
+
+@router.callback_query(F.data == "edu_test_start")
+async def start_edu_test(callback: types.CallbackQuery, state: FSMContext):
+    await state.set_state(EducationTestStates.q1)
+    await state.update_data(score=0)
+    
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="А) 150 метров", callback_data="test_q1_150")],
+        [InlineKeyboardButton(text="Б) 500 метров", callback_data="test_q1_500")],
+        [InlineKeyboardButton(text="В) Без ограничений", callback_data="test_q1_inf")]
+    ])
+    
+    await callback.message.edit_text(
+        "🎓 <b>ИИ Академия Горизонт</b>\n\n"
+        "Вопрос 1/3:\n"
+        "Какая максимальная высота полета БПЛА без установления местного режима (ИВП) в прямой видимости вне диспетчерских зон?\n",
+        parse_mode="HTML",
+        reply_markup=kb
+    )
+    await callback.answer()
+
+@router.callback_query(EducationTestStates.q1, F.data.startswith("test_q1_"))
+async def process_test_q1(callback: types.CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    score = data.get("score", 0)
+    
+    if callback.data == "test_q1_150":
+        score += 1
+        
+    await state.update_data(score=score)
+    await state.set_state(EducationTestStates.q2)
+    
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="А) Да, если дрон легкий", callback_data="test_q2_yes")],
+        [InlineKeyboardButton(text="Б) Нет, категорически запрещено", callback_data="test_q2_no")]
+    ])
+    
+    await callback.message.edit_text(
+        "Вопрос 2/3:\nМожно ли летать над неконтролируемой толпой людей на массовых мероприятиях без специальных разрешений?",
+        reply_markup=kb
+    )
+    await callback.answer()
+
+@router.callback_query(EducationTestStates.q2, F.data.startswith("test_q2_"))
+async def process_test_q2(callback: types.CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    score = data.get("score", 0)
+    
+    if callback.data == "test_q2_no":
+        score += 1
+        
+    await state.update_data(score=score)
+    await state.set_state(EducationTestStates.q3)
+    
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="А) Поставить на учет в Росавиации", callback_data="test_q3_reg")],
+        [InlineKeyboardButton(text="Б) Просто приклеить наклейку с номером телефона", callback_data="test_q3_phone")]
+    ])
+    
+    await callback.message.edit_text(
+        "Вопрос 3/3:\nЧто обязательно нужно сделать с дроном тяжелее 150 грамм после покупки?",
+        reply_markup=kb
+    )
+    await callback.answer()
+
+@router.callback_query(EducationTestStates.q3, F.data.startswith("test_q3_"))
+async def process_test_q3(callback: types.CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    score = data.get("score", 0)
+    
+    if callback.data == "test_q3_reg":
+        score += 1
+        
+    await state.clear()
+    
+    if score >= 2:
+        username = callback.from_user.full_name
+        cert_text = (
+            "🎓 <b>СЕРТИФИКАТ ВЫПУСКНИКА</b> 🎓\n"
+            "━━━━━━━━━━━━━━━━━━━━━\n"
+            f"Настоящий сертификат подтверждает, что\n"
+            f"<b>{username}</b>\n"
+            "успешно прошел(ла) базовый курс\n"
+            "по безопасности полетов БПЛА в\n"
+            "Национальной экосистеме «Горизонт».\n\n"
+            f"Оценка ИИ-теста: {score}/3 балла.\n"
+            "━━━━━━━━━━━━━━━━━━━━━\n"
+            "<i>(Вы можете сохранить этот сертификат)</i>"
+        )
+        await callback.message.edit_text(cert_text, parse_mode="HTML")
+    else:
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔄 Сдать заново", callback_data="edu_test_start")]
+        ])
+        await callback.message.edit_text(
+            f"К сожалению, вы не прошли тест ({score}/3).\nИзучите Базу Знаний и попробуйте еще раз!",
+            reply_markup=kb
+        )
+    await callback.answer()
 
 @router.message(F.text == "📜 Правила и условия")
 async def rules_main(message: types.Message):

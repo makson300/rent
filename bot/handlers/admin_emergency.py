@@ -77,21 +77,48 @@ async def approve_alert(callback: types.CallbackQuery):
         result = await session.execute(stmt)
         operators = result.scalars().unique().all()
         
+        # Умный диспетчер MoMoA: Выделяем ключевое оборудование
+        from bot.services.emergency_monitor import monitor_service
+        keywords = await monitor_service.get_emergency_keywords(alert.raw_text)
+        
         # Рассылка операторам
         notified = 0
-        dispatch_text = (
-            f"🚨 <b>КРАСНЫЙ КОД: ТРЕБУЕТСЯ БПЛА</b> 🚨\n\n"
-            f"<b>Локация:</b> {alert.city}\n"
-            f"<b>Ситуация:</b> {alert.problem_type}\n"
-            f"<b>Нужен:</b> {alert.required_equipment}\n\n"
-            f"<i>{alert.raw_text}</i>\n\n"
-            f"Если вы можете помочь прямо сейчас, нажмите кнопку ниже для получения контактов штаба/заявителя."
-        )
         dispatch_kb = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="🙋‍♂️ Я готов помочь (Связь)", callback_data=f"alert_respond_{alert_id}")]
         ])
         
         for op in operators:
+            # Считываем оборудование
+            op_result = await session.execute(select(Listing).where(Listing.user_id == op.id))
+            op_listings = op_result.scalars().all()
+            all_equipment = " ".join([l.title + " " + (l.description or "") for l in op_listings]).lower()
+            
+            is_priority = False
+            if keywords:
+                for k in keywords:
+                    if k.lower() in all_equipment:
+                        is_priority = True
+                        break
+                        
+            if is_priority:
+                dispatch_text = (
+                    f"🔴 <b>КРИТИЧЕСКИЙ ПРИОРИТЕТ: ВАШЕ ОБОРУДОВАНИЕ ИДЕАЛЬНО ПОДХОДИТ!</b> 🔴\n\n"
+                    f"<b>Локация:</b> {alert.city}\n"
+                    f"<b>Ситуация:</b> {alert.problem_type}\n"
+                    f"<b>Нужен:</b> {alert.required_equipment}\n\n"
+                    f"<i>{alert.raw_text}</i>\n\n"
+                    f"Нажмите кнопку ниже для получения контактов штаба."
+                )
+            else:
+                dispatch_text = (
+                    f"🚨 <b>КРАСНЫЙ КОД: ТРЕБУЕТСЯ БПЛА</b> 🚨\n\n"
+                    f"<b>Локация:</b> {alert.city}\n"
+                    f"<b>Ситуация:</b> {alert.problem_type}\n"
+                    f"<b>Нужен:</b> {alert.required_equipment}\n\n"
+                    f"<i>{alert.raw_text}</i>\n\n"
+                    f"Если вы можете помочь прямо сейчас, нажмите кнопку ниже."
+                )
+                
             try:
                 await callback.bot.send_message(op.telegram_id, dispatch_text, parse_mode="HTML", reply_markup=dispatch_kb)
                 notified += 1
@@ -155,9 +182,38 @@ async def respond_to_alert(callback: types.CallbackQuery):
             return
             
         # Геймификация: начисляем спасение оператору
+        from db.models.reward import Reward
+        
         op_user = await session.get(User, callback.from_user.id)
         if op_user:
             op_user.volunteer_rescues += 1
+            rescues = op_user.volunteer_rescues
+            
+            # Логика выдачи наград
+            new_reward = None
+            if rescues == 1:
+                new_reward = Reward(user_id=op_user.id, title="Первое Спасение", description="Доказано делом: готовность прийти на помощь.", emoji="🔰")
+            elif rescues == 5:
+                new_reward = Reward(user_id=op_user.id, title="Ветеран-Поисковик", description="Успешно завершил 5 экстренных вылетов.", emoji="🎖")
+            elif rescues == 10:
+                new_reward = Reward(user_id=op_user.id, title="Крылья Надежды", description="Герой Горизонта. Провел 10 гуманитарных миссий.", emoji="🕊")
+                
+            if new_reward:
+                session.add(new_reward)
+                # Торжественное уведомление
+                try:
+                    await callback.bot.send_message(
+                        callback.from_user.id,
+                        f"🎉 <b>НОВОЕ ДОСТИЖЕНИЕ РАЗБЛОКИРОВАНО!</b> 🎉\n\n"
+                        f"Вам присвоена цифровая награда:\n"
+                        f"{new_reward.emoji} <b>{new_reward.title}</b>\n"
+                        f"<i>{new_reward.description}</i>\n\n"
+                        f"Медаль добавлена в ваш Профиль и повышает доверие заказчиков.",
+                        parse_mode="HTML"
+                    )
+                except Exception:
+                    pass
+                    
             await session.commit()
             
         # Отправляем оператору контакты заявителя

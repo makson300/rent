@@ -140,6 +140,7 @@ async def admin_main(message: types.Message):
     ]
     
     if role == "admin":
+        kb_buttons.append([InlineKeyboardButton(text="📈 Радар (Арбитраж)", callback_data="admin_radar_menu")])
         kb_buttons.append([InlineKeyboardButton(text="📊 Живая статистика", callback_data="admin_stats")])
         kb_buttons.append([InlineKeyboardButton(text="📢 Массовая рассылка", callback_data="admin_broadcast_init")])
         
@@ -358,6 +359,7 @@ async def admin_back_to_main(callback: types.CallbackQuery):
         [InlineKeyboardButton(text="📝 Заявки на обучение", callback_data="admin_education_list")],
     ]
     if role == "admin":
+        kb_buttons.append([InlineKeyboardButton(text="📈 Радар (Арбитраж)", callback_data="admin_radar_menu")])
         kb_buttons.append([InlineKeyboardButton(text="📊 Живая статистика", callback_data="admin_stats")])
         kb_buttons.append([InlineKeyboardButton(text="📢 Массовая рассылка", callback_data="admin_broadcast_init")])
         

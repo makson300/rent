@@ -76,15 +76,47 @@ async def my_orvd_menu(callback: types.CallbackQuery):
             
     kb_list = [
         [InlineKeyboardButton(text="🚨 ЭКСТРЕННАЯ SAR ЗАЯВКА", callback_data="orvd_emergency")],
-        [InlineKeyboardButton(text="Сформировать новый план (Web)", web_app=types.WebAppInfo(url="https://skyrent.pro/dashboard/legal"))],
-        [InlineKeyboardButton(text="🔙 Назад", callback_data="legal_hub")]
+        [InlineKeyboardButton(text="Сформировать новый план (Web)", web_app=types.WebAppInfo(url="https://skyrent.pro/dashboard/legal"))]
     ]
+    
+    if plans:
+        kb_list.insert(1, [InlineKeyboardButton(text="📄 Экспорт ИВП в ОрВД (последний)", callback_data="export_orvd_latest")])
+        
+    kb_list.append([InlineKeyboardButton(text="🔙 Назад", callback_data="legal_hub")])
     
     await callback.message.edit_text(
         text,
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=kb_list)
     )
+
+@router.callback_query(F.data == "export_orvd_latest")
+async def export_latest_orvd(callback: types.CallbackQuery):
+    """Экспорт последнего плана в текстовый документ СППВ."""
+    from bot.services.orvd_exporter import generate_orvd_document
+    async with async_session() as session:
+        user = await get_user(session, callback.from_user.id)
+        if not user:
+            return
+            
+        result = await session.execute(
+            select(FlightPlan).where(FlightPlan.user_id == user.id).order_by(FlightPlan.created_at.desc()).limit(1)
+        )
+        plan = result.scalars().first()
+        
+    if not plan:
+        await callback.answer("У вас нет планов для экспорта.", show_alert=True)
+        return
+        
+    file_io = await generate_orvd_document(plan)
+    
+    await callback.message.answer_document(
+        types.BufferedInputFile(file_io.getvalue(), filename=file_io.name),
+        caption="📄 <b>Официальное Представление на ИВП готово!</b>\n\nСкопируйте этот текст в форму Росавиации/СППВ или распечатайте.",
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
 
 @router.callback_query(F.data == "orvd_emergency")
 async def orvd_emergency_start(callback: types.CallbackQuery, state: FSMContext):

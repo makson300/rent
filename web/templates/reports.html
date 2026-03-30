@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Аналитика - Горизонт{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>📊 Аналитика и Отчёты</h1>
+        <p style="color: var(--text-dim); margin-top: 5px;">Сводные метрики состояния всей платформы в реальном времени.</p>
+    </div>
+    <div style="color: var(--text-dim); font-size: 14px;">Обновлено: {{ now().strftime('%d.%m.%Y %H:%M') if now is defined else 'сейчас' }}</div>
+</div>
+
+{# ---- ROW 1: High-level KPIs ---- #}
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 30px;">
+    <div class="stat-card" style="background: var(--glass); border: 1px solid var(--glass-border); border-radius: 16px; padding: 22px; position: relative; overflow: hidden;">
+        <div style="font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">👥 Пользователи</div>
+        <div style="font-size: 36px; font-weight: 800; color: #00f2fe;">{{ users.total }}</div>
+        <div style="font-size: 12px; color: #4ade80; margin-top: 4px;">+{{ users.new_7d }} за 7 дней</div>
+        <div style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">Банов: {{ users.banned }} | Адм: {{ users.admins }}</div>
+    </div>
+    <div class="stat-card" style="background: var(--glass); border: 1px solid var(--glass-border); border-radius: 16px; padding: 22px;">
+        <div style="font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">📦 Объявления</div>
+        <div style="font-size: 36px; font-weight: 800; color: #a78bfa;">{{ listings.total }}</div>
+        <div style="font-size: 12px; color: #4ade80; margin-top: 4px;">Активных: {{ listings.active }}</div>
+        <div style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">На модерации: {{ listings.pending }} | Откл: {{ listings.rejected }}</div>
+    </div>
+    <div class="stat-card" style="background: var(--glass); border: 1px solid var(--glass-border); border-radius: 16px; padding: 22px;">
+        <div style="font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">💼 Биржа работ</div>
+        <div style="font-size: 36px; font-weight: 800; color: #fbbf24;">{{ jobs.total }}</div>
+        <div style="font-size: 12px; color: #4ade80; margin-top: 4px;">Активных: {{ jobs.active }}</div>
+    </div>
+    <div class="stat-card" style="background: var(--glass); border: 1px solid var(--glass-border); border-radius: 16px; padding: 22px;">
+        <div style="font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">📝 Тендеры</div>
+        <div style="font-size: 36px; font-weight: 800; color: #4ade80;">{{ tenders.total }}</div>
+        <div style="font-size: 12px; color: #00f2fe; margin-top: 4px;">Активных: {{ tenders.active }}</div>
+        <div style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">Суммарный бюджет: {{ "{:,.0f}".format(tenders.total_budget).replace(',', ' ') }} ₽</div>
+    </div>
+    <div class="stat-card" style="background: var(--glass); border: 1px solid var(--glass-border); border-radius: 16px; padding: 22px;">
+        <div style="font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">🚨 ЧС Инциденты</div>
+        <div style="font-size: 36px; font-weight: 800; color: #f87171;">{{ emergencies.total }}</div>
+        <div style="font-size: 12px; color: #fbbf24; margin-top: 4px;">Открытых: {{ emergencies.open }}</div>
+    </div>
+</div>
+
+{# ---- ROW 2: Listings by category ---- #}
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+    <div style="background: var(--glass); border: 1px solid var(--glass-border); border-radius: 16px; padding: 25px;">
+        <h2 style="margin-bottom: 20px; font-size: 16px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim);">📂 Объявления по категориям</h2>
+        {% set max_count = listings.by_category[0].count if listings.by_category else 1 %}
+        {% for cat in listings.by_category %}
+        <div style="margin-bottom: 14px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <span style="font-size: 13px;">{{ cat.name }}</span>
+                <span style="font-size: 13px; font-weight: 700;">{{ cat.count }}</span>
+            </div>
+            <div style="background: rgba(255,255,255,0.05); border-radius: 6px; height: 8px; overflow: hidden;">
+                <div style="width: {% if max_count > 0 %}{{ (cat.count / max_count * 100)|int }}{% else %}0{% endif %}%; background: linear-gradient(to right, #00f2fe, #a78bfa); height: 100%; border-radius: 6px; transition: width 1s ease;"></div>
+            </div>
+        </div>
+        {% else %}
+        <p style="color: var(--text-dim);">Нет данных</p>
+        {% endfor %}
+    </div>
+
+    <div style="background: var(--glass); border: 1px solid var(--glass-border); border-radius: 16px; padding: 25px;">
+        <h2 style="margin-bottom: 20px; font-size: 16px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim);">📈 Метрики здоровья платформы</h2>
+        <div style="space-y: 12px;">
+            {% set moderation_rate = ((listings.active / listings.total * 100)|int) if listings.total > 0 else 0 %}
+            <div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--glass-border);">
+                <span style="color: var(--text-dim);">Процент одобрения объявлений</span>
+                <span style="font-weight: 700; color: {% if moderation_rate > 70 %}#4ade80{% elif moderation_rate > 40 %}#fbbf24{% else %}#f87171{% endif %};">{{ moderation_rate }}%</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--glass-border);">
+                <span style="color: var(--text-dim);">Заблокированных аккаунтов</span>
+                <span style="font-weight: 700; color: {% if users.banned == 0 %}#4ade80{% else %}#f87171{% endif %};">{{ users.banned }} ({{ ((users.banned / users.total * 100)|round(1)) if users.total > 0 else 0 }}%)</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--glass-border);">
+                <span style="color: var(--text-dim);">Конверсия тендеров в работу</span>
+                <span style="font-weight: 700; color: #00f2fe;">{{ tenders.active }} активных</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--glass-border);">
+                <span style="color: var(--text-dim);">Объявлений на пользователя</span>
+                <span style="font-weight: 700; color: #a78bfa;">{{ "%.1f"|format(listings.total / users.total) if users.total > 0 else 0 }}</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 12px 0;">
+                <span style="color: var(--text-dim);">Открытых ЧС инцидентов</span>
+                <span style="font-weight: 700; color: {% if emergencies.open == 0 %}#4ade80{% else %}#f87171{% endif %};">{{ emergencies.open }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div style="margin-top: 24px; background: var(--glass); border: 1px solid rgba(0,242,254,0.2); border-radius: 16px; padding: 20px; display: flex; align-items: center; gap: 15px;">
+    <span style="font-size: 24px;">💡</span>
+    <div>
+        <strong>Совет для масштабирования:</strong> при достижении 1,000 пользователей рекомендуется вынести модуль аналитики в отдельный микросервис с ClickHouse для агрегации событий в реальном времени.
+    </div>
+</div>
+{% endblock %}

@@ -7,7 +7,8 @@ import { toast } from "react-hot-toast";
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 const STATUS_LABELS: Record<string, { text: string; color: string }> = {
-  pending:  { text: "⏳ Ожидание",  color: "text-yellow-400" },
+  pending:  { text: "⏳ Обработка",  color: "text-yellow-400" },
+  pending_sppi:  { text: "📡 В СППИ (РосАвиация)",  color: "text-blue-400" },
   approved: { text: "✅ Одобрено",   color: "text-emerald-400" },
   rejected: { text: "❌ Отклонено",  color: "text-red-400" },
   draft:    { text: "📝 Черновик",   color: "text-gray-400" },

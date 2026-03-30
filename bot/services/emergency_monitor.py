@@ -88,16 +88,60 @@ class EmergencyMonitor:
         logger.info("Research cycle completed")
 
     async def _orchestrator_gather_news(self):
-        """Оркестратор: Сбор информации (Заглушка для RSS/Telegram)"""
-        # В будущем здесь будет реальный вызов парсеров
-        return [
-            {
-                "id": "test-news-1",
-                "title": "Пожар в лесном массиве", 
-                "content": "Сильное задымление в 15 км от города, требуется оценка площади возгорания.", 
-                "source": "MCHS_RSS"
-            }
+        """Оркестратор: Сбор информации (Реальный RSS-парсинг)"""
+        import feedparser
+        
+        feeds = [
+            "https://lenta.ru/rss/news",      # Надежный открытый источник новостей
+            "https://mchs.gov.ru/rss"         # Оф. канал МЧС (если доступен)
         ]
+        
+        keywords = ["пожар", "возгорани", "взрыв", "утечка", "пропал", "заблудился", "наводнени", "затоплени", "обрушени", "чс", "чрезвычайн", "катастроф", "бпла", "дрон"]
+        
+        news_items = []
+        for feed_url in feeds:
+            try:
+                # В фоновом потоке парсим RSS, чтобы не блокировать event loop
+                feed = await asyncio.to_thread(feedparser.parse, feed_url)
+                if not feed.entries:
+                    continue
+                    
+                for entry in feed.entries[:15]: # Анализируем только свежие 15
+                    title = entry.get("title", "")
+                    summary = entry.get("summary", "")
+                    
+                    title_low = title.lower()
+                    summary_low = summary.lower()
+                    
+                    # Проверяем, есть ли ключевые слова ЧП
+                    if any(kw in title_low or kw in summary_low for kw in keywords):
+                        news_id = entry.get("link", entry.get("id", str(hash(title))))
+                        
+                        if not hasattr(self, "_processed_news"):
+                            self._processed_news = set()
+                            
+                        if news_id in self._processed_news:
+                            continue
+                            
+                        self._processed_news.add(news_id)
+                        
+                        # Храним не более 100 закешированных ID
+                        if len(self._processed_news) > 100:
+                            self._processed_news.pop()
+                            
+                        news_items.append({
+                            "id": news_id,
+                            "title": title,
+                            "content": summary,
+                            "source": feed_url
+                        })
+            except Exception as e:
+                logger.error(f"Error parsing RSS {feed_url}: {e}")
+                
+        if news_items:
+            logger.info(f"Gathered {len(news_items)} real emergency news items from RSS.")
+            
+        return news_items
 
     async def _expert_analyst(self, news_item):
         """Эксперт 1 (Аналитик): Оценивает необходимость дронов (Вызов Gemini)"""
@@ -259,6 +303,102 @@ class EmergencyMonitor:
     def stop(self):
         self.is_running = False
         logger.info("Emergency Monitor stopped")
+
+    def get_danger_zones(self):
+        """Возвращает текущие зоны беспилотной опасности (симулятор)"""
+        # В Production здесь должен быть парсер RSS каналов МЧС или Telethon.
+        # Пока возвращаем симуляцию для демонстрации на Радаре.
+        return [
+            {
+                "id": "danger_voronezh",
+                "lat": 51.6608,
+                "lng": 39.2003, # Воронеж
+                "radius_km": 50,
+                "type": "danger_uav",
+                "title": "🔴 ОПАСНОСТЬ АТАКИ БПЛА",
+                "desc": "Объявлен режим опасности. Соблюдайте спокойствие. Силы ПВО наготове. Полеты гражданских дронов СТРОГО ЗАПРЕЩЕНЫ.",
+                "level": "critical"
+            },
+            {
+                "id": "danger_belgorod",
+                "lat": 50.5997,
+                "lng": 36.5983, # Белгород
+                "radius_km": 40,
+                "type": "danger_uav",
+                "title": "🔴 ОПАСНОСТЬ АТАКИ БПЛА",
+                "desc": "Ракетная/БПЛА опасность. Просьба проследовать в укрытия.",
+                "level": "critical"
+            }
+        ]
+
+    async def evaluate_flight_risk(self, flight_task: str, weather_data: dict):
+        """MoMoA Analytics: Оценка погодных рисков для заявки ИВП."""
+        if not self.client:
+            await asyncio.sleep(0.5)
+            # Fallback
+            if weather_data and weather_data.get("risk_level") == "high":
+                return {
+                    "verdict": "rejected",
+                    "reason": f"Неблагоприятные погодные условия: {', '.join(weather_data.get('risk_reasons', []))}"
+                }
+            return {
+                "verdict": "approved",
+                "reason": "Заглушка: Погода благоприятна, рисков не обнаружено."
+            }
+            
+        prompt = (
+            "SYSTEM ROLE: You are an aviation safety AI (MoMoA). "
+            "A drone operator has submitted a flight plan. You must evaluate the risk based exclusively on the provided weather data. "
+            "Do NOT approve flights if wind gusts > 12m/s or precipitation > 2mm/h unless it's a critical SAR (Search and Rescue) mission. "
+            "Output ONLY valid JSON.\n\n"
+            f"TASKS: {flight_task}\n"
+            f"WEATHER DATA: {json.dumps(weather_data, ensure_ascii=False)}\n\n"
+            "OUTPUT exactly this JSON:\n"
+            '{"verdict": "approved"/"rejected"/"warning", "reason": "brief professional explanation in Russian"}'
+        )
+        
+        fallback = {"verdict": "warning", "reason": "AI parse error"}
+        try:
+            response = await self.client.aio.models.generate_content(
+                model=self.model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(response_mime_type="application/json")
+            )
+            return self._safe_parse_json(response.text, fallback)
+        except Exception as e:
+            logger.error(f"Flight risk eval error: {e}")
+            return fallback
+
+    async def get_emergency_keywords(self, alert_description: str) -> list[str]:
+        """MoMoA Analytics: Выделяет список требуемого оборудования для ЧС."""
+        if not self.client:
+            await asyncio.sleep(0.5)
+            return [] # Заглушка
+            
+        prompt = (
+            "SYSTEM ROLE: You are MoMoA, an emergency dispatch AI. "
+            "Analyze the following SOS description and determine what specific drone equipment "
+            "or keywords are required (e.g., тепловизор, ночная камера, mavic 3t, matrice, зум, сброс). "
+            "If any ordinary drone is fine and no specific equipment is needed, return an empty list. "
+            "ONLY output valid JSON.\n\n"
+            f"SOS DESCRIPTION: {alert_description}\n\n"
+            "OUTPUT exactly this JSON:\n"
+            '{"keywords": ["keyword1", "keyword2"]}'
+        )
+        
+        fallback = {"keywords": []}
+        try:
+            response = await self.client.aio.models.generate_content(
+                model=self.model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(response_mime_type="application/json")
+            )
+            # Make sure types are available for config inside this method if needed, but they are imported globally
+            data = self._safe_parse_json(response.text, fallback)
+            return data.get("keywords", [])
+        except Exception as e:
+            logger.error(f"MoMoA Keyword extraction error: {e}")
+            return []
 
 # Синглтон сервиса
 monitor_service = EmergencyMonitor()

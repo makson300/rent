@@ -12,7 +12,8 @@ from bot.handlers import (
     search_router, seller_profile_router, operators_router,
     support_router, emergency_router, admin_emergency_router,
     admin_advisor_router, admin_flight_router, booking_router, contract_router,
-    job_router, job_hiring_router, orvd_router
+    job_router, job_hiring_router, orvd_router, tariffs_router, tenders_router,
+    momoa_assessment_router, store_ai_router
 )
 from db.base import init_db
 
@@ -75,10 +76,25 @@ async def main():
     dp.include_router(admin_flight_router)
     dp.include_router(booking_router)
     dp.include_router(contract_router)
-    dp.include_router(job_router)
+    from bot.handlers.job_hiring import router as job_hiring_router
+    from bot.handlers.airspace import router as airspace_router
+    from bot.handlers.logbook import router as logbook_router
+    from bot.handlers.insurance import router as insurance_router
+    from bot.handlers.ai_vision import router as ai_vision_router
+    from bot.handlers.admin_radar import router as admin_radar_router
+    from bot.handlers.fleet_manager import router as fleet_router
+    dp.include_router(admin_radar_router)
     dp.include_router(job_hiring_router)
+    dp.include_router(airspace_router)
+    dp.include_router(logbook_router)
+    dp.include_router(insurance_router)
+    dp.include_router(ai_vision_router)
+    dp.include_router(fleet_router)
     dp.include_router(orvd_router)
-
+    dp.include_router(tariffs_router)
+    dp.include_router(tenders_router)
+    dp.include_router(momoa_assessment_router)
+    dp.include_router(store_ai_router)
     try:
         from bot.commands import set_commands
         await set_commands(bot)
@@ -88,6 +104,44 @@ async def main():
     # Запуск фонового мониторинга MoMoA
     from bot.services.emergency_monitor import monitor_service
     monitor_task = asyncio.create_task(monitor_service.start())
+
+    # Запуск парсера hh.ru (раз в 12 часов)
+    from db.base import async_session
+    from bot.services.hh_parser import process_and_save_vacancies
+    
+    async def hh_parser_loop(bot_instance):
+        await asyncio.sleep(10) # Задержка запуска
+        while True:
+            try:
+                async with async_session() as session:
+                    new_jobs = await process_and_save_vacancies(bot_instance, session)
+                    if new_jobs > 0:
+                        logger.info(f"HH Parser: added {new_jobs} new vacancies!")
+            except Exception as e:
+                logger.error(f"HH Parser loop error: {e}")
+            await asyncio.sleep(43200) # 12 часов
+            
+    hh_task = asyncio.create_task(hh_parser_loop(bot))
+
+    # Запуск ИИ Ежедневного Отчета (Daily Digest)
+    from bot.services.smart_moderator import smart_moderator
+    async def daily_digest_loop(bot_instance):
+        await asyncio.sleep(60) # Первоначальная задержка 1 минута
+        while True:
+            try:
+                from bot.handlers.admin import ADMIN_IDS
+                async with async_session() as session:
+                    report = await smart_moderator.generate_daily_report(session)
+                    for admin_id in ADMIN_IDS:
+                        try:
+                            await bot_instance.send_message(admin_id, report, parse_mode="HTML")
+                        except Exception as e:
+                            logger.error(f"Cannot send digest to admin {admin_id}: {e}")
+            except Exception as e:
+                logger.error(f"Daily Digest loop error: {e}")
+            await asyncio.sleep(86400) # 24 часа
+            
+    digest_task = asyncio.create_task(daily_digest_loop(bot))
 
     logger.info("Bot configuration ready.")
     
@@ -125,6 +179,8 @@ async def main():
             logger.info("Stopping background tasks...")
             monitor_service.stop()
             monitor_task.cancel()
+            hh_task.cancel()
+            digest_task.cancel()
 
 
 

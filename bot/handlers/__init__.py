@@ -22,7 +22,10 @@ from bot.handlers.contract import router as contract_router
 from bot.handlers.job import router as job_router
 from bot.handlers.job_hiring import router as job_hiring_router
 from bot.handlers.orvd import router as orvd_router
-
+from bot.handlers.tariffs import router as tariffs_router
+from bot.handlers.tenders import router as tenders_router
+from bot.handlers.momoa_assessment import router as momoa_assessment_router
+from bot.handlers.store_ai import router as store_ai_router
 __all__ = [
     "start_router", "profile_router", "menu_router", 
     "listing_create_router", "catalog_router", "admin_router", 
@@ -32,5 +35,6 @@ __all__ = [
     "support_router", "emergency_router", "admin_emergency_router",
     "admin_advisor_router", "admin_flight_router",
     "booking_router", "contract_router",
-    "job_router", "job_hiring_router", "orvd_router"
+    "job_router", "job_hiring_router", "orvd_router",
+    "tariffs_router", "tenders_router", "momoa_assessment_router", "store_ai_router"
 ]

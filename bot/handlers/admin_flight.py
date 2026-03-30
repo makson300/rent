@@ -59,7 +59,7 @@ async def approve_flight_plan(callback: types.CallbackQuery):
 
     async with async_session() as session:
         plan = await session.get(FlightPlan, plan_id, options=[selectinload(FlightPlan.user)])
-        if not plan or plan.status not in ("pending", "draft"):
+        if not plan or plan.status not in ("pending", "draft", "pending_sppi"):
             await callback.answer("Заявка уже обработана.", show_alert=True)
             return
 
@@ -95,7 +95,7 @@ async def reject_flight_plan(callback: types.CallbackQuery):
 
     async with async_session() as session:
         plan = await session.get(FlightPlan, plan_id, options=[selectinload(FlightPlan.user)])
-        if not plan or plan.status not in ("pending", "draft"):
+        if not plan or plan.status not in ("pending", "draft", "pending_sppi"):
             await callback.answer("Уже обработано.", show_alert=True)
             return
 

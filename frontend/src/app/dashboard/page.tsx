@@ -108,19 +108,21 @@ export default function DashboardPage() {
 
       <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2"><div className="w-1.5 h-6 bg-khokhloma-gold rounded-full"></div>Быстрый доступ</h2>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Link href="/dashboard/tasks" className="bg-[#111111]/80 hover:bg-[#1a1a1a] border border-white/5 hover:border-khokhloma-gold/30 rounded-2xl p-4 flex flex-col items-center justify-center text-center transition-all hover:-translate-y-1 cursor-pointer">
-          <div className="w-12 h-12 rounded-xl bg-khokhloma-gold/10 text-khokhloma-gold flex items-center justify-center mb-3">
+        <Link href="/dashboard/tasks" className="relative overflow-hidden group bg-[#111111]/80 hover:bg-[#1a1a1a] border border-white/5 hover:border-khokhloma-gold/30 rounded-2xl p-4 flex flex-col items-center justify-center text-center transition-all hover:-translate-y-1 cursor-pointer shadow-lg shadow-black/50">
+          <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-pattern-khokhloma opacity-5 group-hover:opacity-20 transition-opacity duration-500 rounded-full" style={{ maskImage: "radial-gradient(circle, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 70%)", WebkitMaskImage: "radial-gradient(circle, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 70%)", transform: "rotate(-15deg)" }}></div>
+          <div className="relative z-10 w-12 h-12 rounded-xl bg-khokhloma-gold/10 text-khokhloma-gold flex items-center justify-center mb-3 group-hover:bg-khokhloma-gold/20 transition-colors">
             <FileText className="w-6 h-6" />
           </div>
-          <span className="font-bold text-white">Мои Задачи</span>
-          <span className="text-xs text-gray-400 mt-1">Актуальные работы</span>
+          <span className="relative z-10 font-bold text-white group-hover:text-khokhloma-gold transition-colors">Мои Задачи</span>
+          <span className="relative z-10 text-xs text-gray-400 mt-1">Актуальные работы</span>
         </Link>
-        <Link href="/dashboard/orvd" className="bg-[#111111]/80 hover:bg-[#1a1a1a] border border-white/5 hover:border-khokhloma-red/30 rounded-2xl p-4 flex flex-col items-center justify-center text-center transition-all hover:-translate-y-1 cursor-pointer">
-          <div className="w-12 h-12 rounded-xl bg-khokhloma-red/10 text-khokhloma-red flex items-center justify-center mb-3">
+        <Link href="/dashboard/orvd" className="relative overflow-hidden group bg-[#111111]/80 hover:bg-[#1a1a1a] border border-white/5 hover:border-khokhloma-red/30 rounded-2xl p-4 flex flex-col items-center justify-center text-center transition-all hover:-translate-y-1 cursor-pointer shadow-lg shadow-black/50">
+          <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-pattern-khokhloma opacity-5 group-hover:opacity-20 transition-opacity duration-500 rounded-full" style={{ maskImage: "radial-gradient(circle, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 70%)", WebkitMaskImage: "radial-gradient(circle, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 70%)", transform: "rotate(-15deg)" }}></div>
+          <div className="relative z-10 w-12 h-12 rounded-xl bg-khokhloma-red/10 text-khokhloma-red flex items-center justify-center mb-3 group-hover:bg-khokhloma-red/20 transition-colors">
             <ShieldAlert className="w-6 h-6" />
           </div>
-          <span className="font-bold text-white">ОрВД (Планы)</span>
-          <span className="text-xs text-gray-400 mt-1">Генератор запросов</span>
+          <span className="relative z-10 font-bold text-white group-hover:text-khokhloma-red transition-colors">ОрВД (Планы)</span>
+          <span className="relative z-10 text-xs text-gray-400 mt-1">Генератор запросов</span>
         </Link>
       </div>
     </div>

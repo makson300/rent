@@ -33,11 +33,47 @@ export default function InteractiveMapPage() {
   const filteredMarkers = markers.filter(m => {
     if (filter === "all") return true;
     if (filter === "flight_plan") return m.type === "nofly" || m.type === "pending_flight";
+    if (filter === "emergency") return m.type === "emergency" || m.type === "danger_uav";
     return m.type === filter;
   });
 
-  const pinMarkers = filteredMarkers.filter(m => m.type !== 'nofly' && m.type !== 'pending_flight');
-  const zoneMarkers = filteredMarkers.filter(m => m.type === 'nofly' || m.type === 'pending_flight');
+  const pinMarkers = filteredMarkers.filter(m => m.type !== 'nofly' && m.type !== 'pending_flight' && m.type !== 'danger_uav');
+  const zoneMarkers = filteredMarkers.filter(m => m.type === 'nofly' || m.type === 'pending_flight' || m.type === 'danger_uav');
+
+  const [weatherData, setWeatherData] = useState<any>(null);
+  const [momoaData, setMomoaData] = useState<any>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  useEffect(() => {
+    // Fetch MoMoA Analytics when a marker is selected
+    if (selectedMarker) {
+      setWeatherData(null);
+      setMomoaData(null);
+      
+      // We only run deep analysis for flight plans or danger zones to save API calls
+      if (['nofly', 'pending_flight'].includes(selectedMarker.type)) {
+        setIsAnalyzing(true);
+        fetch(`${process.env.NEXT_PUBLIC_API_URL ?? ""}/api/v1/momoa/flight_risk?lat=${selectedMarker.lat}&lon=${selectedMarker.lng}&task_desc=${encodeURIComponent(selectedMarker.desc || "Полет")}`)
+          .then(r => r.json())
+          .then(data => {
+             if (data.ok) {
+               setWeatherData(data.weather);
+               setMomoaData(data.momoa_analysis);
+             }
+             setIsAnalyzing(false);
+          })
+          .catch(() => setIsAnalyzing(false));
+      } else {
+        // Just fetch weather for other specific markers like emergencies or jobs
+        fetch(`${process.env.NEXT_PUBLIC_API_URL ?? ""}/api/v1/weather?lat=${selectedMarker.lat}&lon=${selectedMarker.lng}`)
+          .then(r => r.json())
+          .then(data => {
+            if (data.ok) setWeatherData(data.weather);
+          })
+          .catch(() => {});
+      }
+    }
+  }, [selectedMarker]);
 
   /** Convert km radius to approximate pixel size based on zoom */
   const radiusToPixels = (radiusKm: number, lat: number) => {
@@ -136,6 +172,8 @@ export default function InteractiveMapPage() {
           {zoneMarkers.map((marker) => {
             const size = radiusToPixels(marker.radius_km || 1, marker.lat);
             const isApproved = marker.type === "nofly";
+            const isDanger = marker.type === "danger_uav";
+            
             return (
               <Overlay
                 key={marker.id}
@@ -143,21 +181,30 @@ export default function InteractiveMapPage() {
                 offset={[size, size]}
               >
                 <div
-                  className="rounded-full cursor-pointer transition-opacity hover:opacity-80 flex items-center justify-center relative group"
+                  className={`rounded-full cursor-pointer transition-opacity hover:opacity-80 flex items-center justify-center relative group ${isDanger ? 'animate-pulse' : ''}`}
                   onClick={() => { setSelectedMarker(marker); setSelectedZone(null); }}
                   style={{
                     width: size * 2,
                     height: size * 2,
-                    background: isApproved
-                      ? "rgba(59, 130, 246, 0.15)"
-                      : "rgba(107, 114, 128, 0.15)",
-                    border: isApproved
-                      ? "2px solid rgba(59, 130, 246, 0.6)"
-                      : "2px dashed rgba(168, 85, 247, 0.5)",
+                    background: isDanger 
+                      ? "rgba(239, 68, 68, 0.3)" 
+                      : isApproved
+                        ? "rgba(59, 130, 246, 0.15)"
+                        : "rgba(107, 114, 128, 0.15)",
+                    border: isDanger
+                      ? "3px solid rgba(239, 68, 68, 0.8)"
+                      : isApproved
+                        ? "2px solid rgba(59, 130, 246, 0.6)"
+                        : "2px dashed rgba(168, 85, 247, 0.5)",
+                    boxShadow: isDanger ? "0 0 30px rgba(239,68,68,0.5)" : "none"
                   }}
                 >
                   <div className="absolute inset-0 m-auto w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Navigation className={`w-4 h-4 ${isApproved ? "text-blue-500" : "text-purple-400"}`} />
+                    {isDanger ? (
+                      <Shield className="w-6 h-6 text-red-100" />
+                    ) : (
+                      <Navigation className={`w-4 h-4 ${isApproved ? "text-blue-500" : "text-purple-400"}`} />
+                    )}
                   </div>
                 </div>
               </Overlay>
@@ -210,33 +257,82 @@ export default function InteractiveMapPage() {
 
         {/* === Marker Info Panel === */}
         {selectedMarker && (
-          <div className="absolute top-4 right-4 md:top-8 md:right-8 bg-[#0A0A0B]/90 backdrop-blur-md border border-white/10 p-6 rounded-2xl w-[320px] shadow-2xl z-20">
+          <div className="absolute top-4 right-4 md:top-8 md:right-8 bg-[#0A0A0B]/90 backdrop-blur-md border border-white/10 p-6 rounded-2xl w-[350px] max-h-[85vh] overflow-y-auto shadow-2xl z-20">
             <div className="flex justify-between items-start mb-4">
               <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md ${
                 selectedMarker.type === 'emergency' ? "bg-red-500/20 text-red-500" :
+                selectedMarker.type === 'danger_uav' ? "bg-red-600 font-extrabold text-white animate-pulse" :
                 (selectedMarker.type === 'nofly' || selectedMarker.type === 'pending_flight') ? "bg-orange-500/20 text-orange-500" :
                 "bg-emerald-500/20 text-emerald-500"
               }`}>
-                {selectedMarker.type === 'emergency' ? 'Вызов ЧС' : (selectedMarker.type === 'nofly' || selectedMarker.type === 'pending_flight') ? 'ОрВД ИВП' : 'Коммерция'}
+                {selectedMarker.type === 'emergency' ? 'Вызов ЧС' : 
+                 selectedMarker.type === 'danger_uav' ? '⚠ ОПАСНОСТЬ БПЛА' : 
+                 (selectedMarker.type === 'nofly' || selectedMarker.type === 'pending_flight') ? 'ОрВД ИВП' : 'Коммерция'}
               </span>
               <button onClick={() => setSelectedMarker(null)} className="text-gray-500 hover:text-white">✕</button>
             </div>
-            <h3 className="text-lg font-bold text-white mb-2">{selectedMarker.title}</h3>
+            <h3 className={`text-lg font-bold mb-2 ${selectedMarker.type === 'danger_uav' ? 'text-red-400' : 'text-white'}`}>
+              {selectedMarker.title}
+            </h3>
             <p className="text-gray-400 text-sm mb-4">{selectedMarker.desc}</p>
             
-            {(selectedMarker.type === 'nofly' || selectedMarker.type === 'pending_flight') && (
+            {/* Weather Widget */}
+            {weatherData && (
+              <div className="bg-white/5 border border-white/10 rounded-lg p-3 mb-4 text-xs font-mono text-gray-300">
+                <div className="flex justify-between items-center mb-2 border-b border-white/10 pb-1">
+                  <span className="text-gray-400 font-bold uppercase tracking-wider">Метеоусловия (OpenMeteo)</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <div>🌡 t°: <span className="text-white">{weatherData.temperature}°C</span></div>
+                  <div>💨 Ветер: <span className="text-white">{weatherData.wind_speed_ms} м/с</span></div>
+                  <div>🌬 Порывы: <span className="text-white">{weatherData.wind_gusts} м/с</span></div>
+                  <div>☔ Осадки: <span className="text-white">{weatherData.precipitation_mm} мм</span></div>
+                </div>
+                {weatherData.risk_level === 'high' && (
+                   <div className="mt-2 text-red-400 flex flex-col">
+                     <strong>⚠ Штормовое предупреждение</strong>
+                     {weatherData.risk_reasons?.map((r: string, i: number) => <span key={i}>- {r}</span>)}
+                   </div>
+                )}
+              </div>
+            )}
+
+            {/* MoMoA Analytics Widget */}
+            {isAnalyzing && (
+              <div className="text-center py-4 bg-[#141416] border border-blue-500/30 rounded-lg mb-4 text-sm font-mono text-blue-400 animate-pulse">
+                ⏳ MoMoA анализирует процесс...
+              </div>
+            )}
+            
+            {momoaData && (
+              <div className={`border rounded-lg p-3 mb-4 text-sm ${momoaData.verdict === 'approved' ? 'bg-emerald-500/10 border-emerald-500/30' : momoaData.verdict === 'warning' ? 'bg-orange-500/10 border-orange-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
+                <div className="flex items-center gap-2 mb-1.5 font-bold font-mono tracking-wider">
+                  🤖 MoMoA ВЕРДИКТ: 
+                  <span className={momoaData.verdict === 'approved' ? 'text-emerald-400' : momoaData.verdict === 'warning' ? 'text-orange-400' : 'text-red-400'}>
+                    {momoaData.verdict.toUpperCase()}
+                  </span>
+                </div>
+                <p className="text-gray-300 text-xs leading-relaxed">{momoaData.reason}</p>
+              </div>
+            )}
+
+            {(selectedMarker.type === 'nofly' || selectedMarker.type === 'pending_flight' || selectedMarker.type === 'danger_uav') && (
               <div className="bg-white/5 border border-white/10 rounded-lg p-3 mb-4 text-sm font-mono text-gray-300">
-                <div className="flex justify-between mb-1">
-                  <span className="text-gray-500">Высота:</span>
-                  <span>{selectedMarker.alt_min || 0}m - {selectedMarker.alt_max}m</span>
-                </div>
-                <div className="flex justify-between mb-1">
-                  <span className="text-gray-500">Оператор:</span>
-                  <span>{selectedMarker.operator_name || 'Неизвестен'}</span>
-                </div>
+                {selectedMarker.type !== 'danger_uav' && (
+                    <>
+                        <div className="flex justify-between mb-1">
+                        <span className="text-gray-500">Высота:</span>
+                        <span>{selectedMarker.alt_min || 0}m - {selectedMarker.alt_max}m</span>
+                        </div>
+                        <div className="flex justify-between mb-1">
+                        <span className="text-gray-500">Оператор:</span>
+                        <span>{selectedMarker.operator_name || 'Неизвестен'}</span>
+                        </div>
+                    </>
+                )}
                 <div className="flex justify-between">
                   <span className="text-gray-500">Радиус:</span>
-                  <span className="text-blue-400 font-bold">{selectedMarker.radius_km} км</span>
+                  <span className={`${selectedMarker.type === 'danger_uav' ? 'text-red-400' : 'text-blue-400'} font-bold`}>{selectedMarker.radius_km} км</span>
                 </div>
               </div>
             )}
@@ -247,6 +343,12 @@ export default function InteractiveMapPage() {
             <div className="text-xs text-gray-500 mb-6 font-mono">
               GPS: {selectedMarker.lat}, {selectedMarker.lng}
             </div>
+            
+            {selectedMarker.type === 'danger_uav' && (
+              <a href="#" className="w-full text-center py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-[0_0_15px_rgba(239,68,68,0.5)]">
+                <Shield className="w-4 h-4" /> ИНСТРУКЦИИ ПРИ ОПАСНОСТИ
+              </a>
+            )}
             {selectedMarker.type === 'emergency' && (
               <Link href="https://t.me/SkyRentAdminBot" target="_blank" className="w-full block text-center py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-red-500/20">
                 Присоединиться к поискам

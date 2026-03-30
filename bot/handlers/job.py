@@ -86,17 +86,62 @@ async def process_job_budget(message: types.Message, state: FSMContext):
             category=data['category'],
             city=data['city'],
             budget=budget,
-            status="pending"
+            status="approved" # Auto-appproved for testing Freelance push
         )
         session.add(new_job)
         await session.commit()
+        job_id = new_job.id
+        
+        # Найти всех операторов в этом городе
+        from sqlalchemy import select
+        from db.models.listing import Listing
+        from db.models.category import Category
+        
+        op_query = (
+            select(Listing)
+            .join(Category)
+            .where(Category.name == "Операторы")
+            .where(Listing.status == "approved")
+        )
+        
+        # Если город указан, фильтруем по нему (простая логика)
+        if data['city']:
+            op_query = op_query.where(Listing.city.ilike(f"%{data['city']}%"))
+            
+        op_result = await session.execute(op_query)
+        operators = op_result.scalars().all()
+        
+        notified_set = set()
+        for op in operators:
+            notified_set.add(op.user_id)
+            
+        for op_id in notified_set:
+            try:
+                from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+                kb = InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton(text="Откликнуться", web_app=types.WebAppInfo(url=f"https://skyrent.pro/webapp/jobs/{job_id}"))]
+                ])
+                await message.bot.send_message(
+                    chat_id=op_id,
+                    text=f"🎬 <b>НОВАЯ ЗАДАЧА В ВАШЕМ ГОРОДЕ!</b>\n\n"
+                         f"<b>Задача:</b> {data['title']}\n"
+                         f"<b>Бюджет:</b> {budget}\n\n"
+                         f"Откликнитесь первым!",
+                    parse_mode="HTML",
+                    reply_markup=kb
+                )
+            except Exception:
+                pass
+                
+        notified_count = len(notified_set)
     
     await state.clear()
     
     # Text for user
     await message.answer(
-        "✅ <b>Ваш заказ успешно создан!</b>\n\n"
-        "Он отправлен на проверку модераторам. Как только он будет одобрен, пилоты увидят его в Web-Каталоге и смогут откликнуться.",
+        f"✅ <b>Ваш заказ успешно опубликован!</b>\n\n"
+        f"📍 Работа в г. {data['city']}\n"
+        f"🔔 Прямо сейчас мы отправили пуш-уведомления {notified_count} свободным операторам рядом с вами. Ожидайте откликов в Web-Каталоге.",
         parse_mode="HTML"
     )
     

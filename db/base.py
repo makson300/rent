@@ -35,6 +35,7 @@ async def init_db():
     from db.models.job_response import JobResponse
     from db.models.flight_plan import FlightPlan
     from db.models.emergency import EmergencyAlert
+    from db.models.reward import Reward
     from sqlalchemy import select
     
     async with async_session() as session:

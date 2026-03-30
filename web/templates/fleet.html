@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Веб-Ангар (Fleet) - Горизонт{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>🚁 Веб-Ангар (Fleet Manager)</h1>
+        <p style="color: var(--text-dim); margin-top: 5px;">Управление жизненным циклом бортов и АКБ.</p>
+    </div>
+    <button class="glass-btn" onclick="alert('Откройте бота для интеграции с логбуком.')">➕ Добавить борт</button>
+</div>
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>ID / Модель</th>
+                <th>Налет (часы)</th>
+                <th>Штат. АКБ</th>
+                <th>Статус МОМОА</th>
+                <th>След. ТО</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for drone in drones %}
+            <tr>
+                <td>
+                    <b>{{ drone.model_name }}</b><br>
+                    <span style="font-size: 12px; color: var(--text-dim);">S/N: {{ drone.serial_number }}</span>
+                </td>
+                <td>
+                    <div style="width: 100%; background: rgba(0,0,0,0.3); border-radius: 10px; overflow: hidden; height: 10px; margin-bottom: 5px;">
+                        <div style="width: {{ (drone.total_flight_hours / 1000 * 100) }}%; background: #00f2fe; height: 100%;"></div>
+                    </div>
+                    <span style="font-size: 12px;">{{ drone.total_flight_hours }} / 1000 ч.</span>
+                </td>
+                <td>{{ drone.batteries|length }} шт.</td>
+                <td>
+                    <span style="background: rgba(74,222,128,0.2); color: #4ade80; padding: 4px 8px; border-radius: 8px; font-size: 12px;">✅ Годен</span>
+                </td>
+                <td>Через 45 ч.</td>
+                <td>
+                    <button class="glass-btn" style="padding: 4px 12px; font-size: 12px;">Карточка</button>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-dim);">
+                    Нет добавленных бортов. Добавьте их в разделе "Ангар" в Telegram-боте.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<h2 style="margin-top: 40px; margin-bottom: 20px;">🔋 Учет АКБ</h2>
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>S/N АКБ</th>
+                <th>Циклы</th>
+                <th>Деградация</th>
+                <th>Статус</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for bat in batteries %}
+            <tr>
+                <td>{{ bat.serial_number }}</td>
+                <td>
+                    <div style="width: 100%; background: rgba(0,0,0,0.3); border-radius: 10px; overflow: hidden; height: 10px; margin-bottom: 5px;">
+                        <div style="width: {{ (bat.cycles / 200 * 100) }}%; background: {% if bat.cycles > 150 %}#f87171{% else %}#fbbf24{% endif %}; height: 100%;"></div>
+                    </div>
+                    <span style="font-size: 12px;">{{ bat.cycles }} / 200</span>
+                </td>
+                <td>{{ bat.degradation_percentage }}%</td>
+                <td>
+                    {% if bat.cycles >= 200 %}
+                    <span style="color: #f87171;">❌ Под замену</span>
+                    {% else %}
+                    <span style="color: #4ade80;">✅ Ок</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" style="text-align: center; padding: 20px; color: var(--text-dim);">Нет АКБ</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

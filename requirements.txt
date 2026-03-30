@@ -12,3 +12,7 @@ redis==5.0.3
 python-multipart==0.0.9
 fpdf2==2.7.9
 pydantic>=2.4.1,<2.6
+google-genai
+matplotlib
+alembic==1.13.1
+yookassa

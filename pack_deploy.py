@@ -5,7 +5,7 @@ EXCLUDE_DIRS = {'.git', 'venv', '.venv', '__pycache__', '.gemini', '.next', 'nod
 EXCLUDE_FILES = {
     'deploy.py', 'deploy.zip', 'deploy.tar.gz', 'test_ssh.py',
     'rentbot.db', 'rentbot.db-journal', 'db.sqlite3',
-    'paramiko.log', 'web_log.txt'
+    'paramiko.log', 'web_log.txt', '.env'
 }
 
 z = zipfile.ZipFile('deploy.zip', 'w', zipfile.ZIP_DEFLATED)

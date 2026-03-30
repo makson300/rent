@@ -36,12 +36,13 @@ async def start_listing_create(callback: types.CallbackQuery, state: FSMContext)
             return
             
         if user.user_type == "company" and user.ad_slots <= 0:
+            from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
             kb = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="💎 Купить пакет", callback_data="buy_slots_from_create")],
+                [InlineKeyboardButton(text="💎 Выбрать тариф", callback_data="buy_slots_from_create")],
                 [InlineKeyboardButton(text="🔙 В главное меню", callback_data="back_to_main")]
             ])
             await callback.message.answer(
-                "⚠️ <b>У вас закончились доступные слоты для объявлений.</b>\n\n"
+                "⚠️ <b>У вас нет доступных слотов для объявлений.</b>\n\n"
                 "Так как вы зарегистрировались как <b>Компания</b>, для размещения в аренду необходимо иметь оплаченный пакет.\n\n"
                 "Пожалуйста, приобретите новый пакет для продолжения.",
                 parse_mode="HTML",
@@ -141,21 +142,15 @@ async def process_deposit(message: types.Message, state: FSMContext):
     # If it's a sale, we might want to skip or label it differently, 
     # but for now we'll just allow setting it or skip if empty.
     await state.update_data(deposit_terms=message.text)
-    await message.answer("📝 <b>Шаг 6/9</b>\nУкажите условия доставки/самовывоза:")
+    await message.answer("📝 <b>Шаг 6/8</b>\nУкажите условия доставки/самовывоза:")
     await state.set_state(ListingCreateStates.waiting_for_delivery)
-
 
 @router.message(ListingCreateStates.waiting_for_delivery, F.text)
 async def process_delivery(message: types.Message, state: FSMContext):
     await state.update_data(delivery_terms=message.text)
-    await message.answer("📝 <b>Шаг 7/9</b>\nУкажите цены (например, 1 день - 500р, 3 дня - 1200р):")
-    await state.set_state(ListingCreateStates.waiting_for_price)
-
-
-@router.message(ListingCreateStates.waiting_for_price, F.text)
-async def process_price(message: types.Message, state: FSMContext):
-    await state.update_data(price_list=message.text)
-
+    # Форсируем B2B ценообразование "По запросу" и пропускаем шаг ввода цены
+    await state.update_data(price_list="По запросу (B2B)")
+    
     from db.base import async_session
     from db.crud.user import get_user
     async with async_session() as session:
@@ -169,13 +164,18 @@ async def process_price(message: types.Message, state: FSMContext):
     )
 
     await message.answer(
-        "📝 <b>Шаг 8/9</b>\nУкажите контактные данные для связи.\n\n"
+        "📝 <b>Шаг 7/8</b>\nУкажите контактные данные для связи.\n\n"
         "<i>Вы можете использовать номер телефона из вашего профиля (кнопка ниже) или ввести другой контакт (например, ссылку на Telegram).</i>",
         reply_markup=kb,
         parse_mode="HTML"
     )
     await state.set_state(ListingCreateStates.waiting_for_contacts)
 
+# Оставляем старый хендлер для обратной совместимости незавершенных сессий
+@router.message(ListingCreateStates.waiting_for_price, F.text)
+async def process_price_legacy(message: types.Message, state: FSMContext):
+    await state.update_data(price_list="По запросу (B2B)")
+    await process_delivery(message, state) # перенаправляем на следующий шаг
 
 @router.message(ListingCreateStates.waiting_for_contacts, F.text)
 async def process_contacts(message: types.Message, state: FSMContext):
@@ -186,7 +186,7 @@ async def process_contacts(message: types.Message, state: FSMContext):
     kb = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="✅ Завершить загрузку", callback_data="finish_photos")]])
     
     await message.answer(
-        "📝 <b>Шаг 9/9</b>\nОтправьте от 1 до 10 фотографий.\n\n"
+        "📝 <b>Шаг 8/8</b>\nОтправьте от 1 до 10 фотографий.\n\n"
         "<i>Отправляйте фото по одному. Когда закончите, нажмите кнопку ниже.</i>",
         reply_markup=kb,
         parse_mode="HTML"
@@ -271,6 +271,10 @@ async def finish_photos(callback: types.CallbackQuery, state: FSMContext):
 
     await callback.answer()
 
+@router.callback_query(F.data == "start_listing_create")
+async def start_listing_create_callback(callback: types.CallbackQuery, state: FSMContext):
+    await start_listing_create(callback, state)
+
 @router.callback_query(F.data == "confirm_listing_publish")
 async def confirm_listing_publish(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
@@ -278,6 +282,22 @@ async def confirm_listing_publish(callback: types.CallbackQuery, state: FSMConte
     seller_type = data.get("seller_type", "individual")
     listing_type = data.get("listing_type", "rental")
     
+    from db.base import async_session
+    from db.crud.user import get_user
+    
+    async with async_session() as session:
+        user = await get_user(session, callback.from_user.id)
+        
+        # Если есть слоты по тарифу, публикуем бесплатно
+        if user and user.ad_slots > 0:
+            user.ad_slots -= 1
+            await session.commit()
+            
+            await callback.message.delete()
+            wait_msg = await callback.message.answer("⏳ <i>Публикация объявления (списан 1 слот)...</i>", parse_mode="HTML")
+            await _publish_listing_to_db(bot=callback.bot, user_tg=callback.from_user, data=data, state=state, session=session, wait_msg=wait_msg)
+            return
+
     if listing_type == "sale":
         price_stars = 250 if seller_type == "store" else 50
         desc = "Размещение объявления о продаже (Магазин)" if seller_type == "store" else "Размещение объявления о продаже (Б/У)"
@@ -294,7 +314,7 @@ async def confirm_listing_publish(callback: types.CallbackQuery, state: FSMConte
     await callback.message.delete()
     await callback.message.answer_invoice(
         title="Публикация объявления",
-        description=f"{desc}.\nСтоимость: {price_stars} ⭐️",
+        description=f"{desc}.\nСтоимость: {price_stars} ⭐️ (или оплатите подписку через /tariffs для безлимита)",
         payload=f"publish_listing_{callback.from_user.id}",
         currency="XTR",
         prices=prices,
@@ -309,71 +329,101 @@ async def process_pre_checkout_query(pre_checkout_query: types.PreCheckoutQuery)
 @router.message(F.successful_payment, lambda message: message.successful_payment.invoice_payload.startswith("publish_listing_"))
 async def process_successful_payment(message: types.Message, state: FSMContext):
     data = await state.get_data()
+    from db.base import async_session
+    
+    async with async_session() as session:
+        wait_msg = await message.answer("⏳ <i>Публикация объявления...</i>", parse_mode="HTML")
+        await _publish_listing_to_db(bot=message.bot, user_tg=message.from_user, data=data, state=state, session=session, wait_msg=wait_msg)
+
+async def _publish_listing_to_db(bot, user_tg, data, state, session, wait_msg):
     photos = data.get("photos", [])
     seller_type = data.get("seller_type", "individual")
-    from db.base import async_session
     from db.crud.listing import create_listing
     from db.crud.user import get_user
     from bot.keyboards.main_menu import get_main_menu
     
-    async with async_session() as session:
-        # Получаем реального ID пользователя из БД
-        db_user = await get_user(session, message.from_user.id)
-        user_db_id = db_user.id if db_user else 1 # Фоллбек на системного, если не зарегистрирован
+    # Получаем реального ID пользователя из БД
+    db_user = await get_user(session, user_tg.id)
+    user_db_id = db_user.id if db_user else 1 # Фоллбек на системного, если не зарегистрирован
         
-        # Определяем тип объявления и категорию
-        l_type = data.get("listing_type", "rental")
-        # Map category name to DB id
-        cat_name = data.get("category", "Дроны")
-        cat_map = {"Дроны": 1, "Техника для съемки": 4, "Другое": 5, "Операторы": 6}
-        cat_id = data.get("category_id") or cat_map.get(cat_name, 1)
+    # Определяем тип объявления и категорию
+    l_type = data.get("listing_type", "rental")
+    # Map category name to DB id
+    cat_name = data.get("category", "Дроны")
+    cat_map = {"Дроны": 1, "Техника для съемки": 4, "Другое": 5, "Операторы": 6}
+    cat_id = data.get("category_id") or cat_map.get(cat_name, 1)
+    
+    # Получаем созданное объявление (с ID)
+    new_listing = await create_listing(
+        session=session,
+        user_id=user_db_id,
+        category_id=cat_id,
+        city=data["city"],
+        title=data["title"],
+        description=data["description"],
+        deposit_terms=data.get("deposit_terms", "Не требуется"),
+        delivery_terms=data["delivery_terms"],
+        price_list=data["price_list"],
+        contacts=data["contacts"],
+        photo_ids=photos,
+        listing_type=l_type,
+        status="moderation"
+    )
+    new_listing.seller_type = seller_type  # Устанавливаем seller_type
+    await session.commit()
+    
+    # Referral Bonus Logic
+    if db_user and getattr(db_user, 'referrer_id', None):
+        ref_id = db_user.referrer_id
+        from sqlalchemy import update
+        from db.models.user import User
+        from db.crud.user import get_user_by_db_id
         
-        # Получаем созданное объявление (с ID)
-        new_listing = await create_listing(
-            session=session,
-            user_id=user_db_id,
-            category_id=cat_id,
-            city=data["city"],
-            title=data["title"],
-            description=data["description"],
-            deposit_terms=data.get("deposit_terms", "Не требуется"),
-            delivery_terms=data["delivery_terms"],
-            price_list=data["price_list"],
-            contacts=data["contacts"],
-            photo_ids=photos,
-            listing_type=l_type,
-            status="moderation"
+        await session.execute(
+            update(User).where(User.id == ref_id).values(referral_bonus=User.referral_bonus + 1)
         )
-        new_listing.seller_type = seller_type  # Устанавливаем seller_type
+        db_user.referrer_id = None
         await session.commit()
         
-        # Referral Bonus Logic
-        if db_user and getattr(db_user, 'referrer_id', None):
-            ref_id = db_user.referrer_id
-            from sqlalchemy import update
-            from db.models.user import User
-            from db.crud.user import get_user_by_db_id
-            
-            await session.execute(
-                update(User).where(User.id == ref_id).values(referral_bonus=User.referral_bonus + 1)
-            )
-            db_user.referrer_id = None
-            await session.commit()
-            
-            ref_user = await get_user_by_db_id(session, ref_id)
-            if ref_user and ref_user.telegram_id:
-                try:
-                    await message.bot.send_message(
-                        ref_user.telegram_id,
-                        "🎁 <b>Бонус за друга!</b>\n\n"
-                        "Пользователь, которого вы пригласили, оплатил свое первое объявление.\n"
-                        "Вам начислен <b>+1 купон на бесплатное VIP-размещение</b> (поднятие в ТОП)!\n\n"
-                        "<i>Перейдите в Профиль -> Мои объявления, чтобы использовать его.</i>",
-                        parse_mode="HTML"
-                    )
-                except Exception as e:
-                    logger.error(f"Failed to notify referrer {ref_id}: {e}")
-    # Уведомляем админов
+        ref_user = await get_user_by_db_id(session, ref_id)
+        if ref_user and ref_user.telegram_id:
+            try:
+                await bot.send_message(
+                    ref_user.telegram_id,
+                    "🎁 <b>Бонус за друга!</b>\n\n"
+                    "Пользователь, которого вы пригласили, оплатил свое первое объявление.\n"
+                    "Вам начислен <b>+1 купон на бесплатное VIP-размещение</b> (поднятие в ТОП)!\n\n"
+                    "<i>Перейдите в Профиль -> Мои объявления, чтобы использовать его.</i>",
+                    parse_mode="HTML"
+                )
+            except Exception as e:
+                logger.error(f"Failed to notify referrer {ref_id}: {e}")
+    # AI Smart Moderation
+    from bot.services.smart_moderator import smart_moderator
+    await wait_msg.edit_text("⏳ <i>ИИ-Модератор проверяет ваше объявление...</i>", parse_mode="HTML")
+    
+    ai_result = await smart_moderator.auto_moderate_listing(
+        title=data["title"],
+        description=data["description"],
+        category=data["category"],
+        price=data["price_list"]
+    )
+    
+    if ai_result.get("status") == "APPROVED":
+        new_listing.status = "active"
+        await session.commit()
+        await state.clear()
+        await wait_msg.delete()
+        await bot.send_message(
+            user_tg.id,
+            "✅ <b>Ваше объявление прошло ИИ-модерацию и уже опубликовано в каталоге!</b>\n\n"
+            "Желаем успешных сделок!",
+            parse_mode="HTML",
+            reply_markup=get_main_menu()
+        )
+        return
+
+    # Уведомляем админов, если ИИ отправил на ручную модерацию
     from bot.handlers.admin import ADMIN_IDS
     from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
     
@@ -386,31 +436,34 @@ async def process_successful_payment(message: types.Message, state: FSMContext):
     
     admin_text = (
         f"🆕 <b>Новое объявление на модерации!</b>\n\n"
-        f"👤 От: {message.from_user.full_name} (@{message.from_user.username})\n"
+        f"👤 От: {user_tg.full_name} (@{user_tg.username})\n"
         f"🏙 Город: {data['city']}\n"
         f"🏷 Категория: {data['category']}\n"
         f"📦 Название: {data['title']}\n"
         f"📝 Описание: {data['description']}\n"
-        f"💰 Цены: {data['price_list']}"
+        f"💰 Цены: {data['price_list']}\n\n"
+        f"🤖 <b>Вердикт ИИ (MANUAL_REVIEW):</b> <i>{ai_result.get('reason', 'Требует проверки человеком')}</i>"
     )
     
     for admin_id in ADMIN_IDS:
         try:
             if photos:
-                await message.bot.send_photo(
+                await bot.send_photo(
                     admin_id, photos[0], caption=admin_text[:1024], reply_markup=admin_kb, parse_mode="HTML"
                 )
             else:
-                await message.bot.send_message(
+                await bot.send_message(
                     admin_id, admin_text, reply_markup=admin_kb, parse_mode="HTML"
                 )
         except Exception as e:
             logger.error(f"Failed to notify admin {admin_id}: {e}")
 
     await state.clear()
-    await message.answer(
-        "✅ <b>Ваше объявление успешно создано и отправлено на модерацию!</b>\n\n"
-        "Мы сообщим вам, когда оно станет активно.",
+    await wait_msg.delete()
+    await bot.send_message(
+        user_tg.id,
+        "✅ <b>Ваше объявление отложено для проверки человеком!</b>\n\n"
+        "Алгоритму требуется дополнительное время для проверки. Мы сообщим вам, когда оно станет активно.",
         parse_mode="HTML",
         reply_markup=get_main_menu()
     )

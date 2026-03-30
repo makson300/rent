@@ -276,17 +276,18 @@
 </head>
 <body>
     <div class="mobile-header">
-        <div class="logo" style="margin-bottom: 0;">SKY RENT AI</div>
+        <div class="logo" style="margin-bottom: 0;">ГОРИЗОНТ</div>
         <button class="hamburger" onclick="toggleMenu()">☰</button>
     </div>
 
     <div class="overlay" id="overlay" onclick="toggleMenu()"></div>
 
     <div class="sidebar" id="sidebar">
-        <div class="logo" style="display: var(--desktop-logo-display, block);">SKY RENT AI</div>
+        <div class="logo" style="display: var(--desktop-logo-display, block);">ГОРИЗОНТ</div>
         
         {% set current_path = request.url.path %}
         <a href="/" class="nav-item {% if current_path == '/' %}active{% endif %}">📊 Дашборд</a>
+        <a href="/reports" class="nav-item {% if current_path.startswith('/reports') %}active{% endif %}">📊 Отчёты и Аналитика</a>
         <a href="/applications" class="nav-item {% if current_path.startswith('/app') %}active{% endif %}">📝 Заявки</a>
         <a href="/listings" class="nav-item {% if current_path.startswith('/list') %}active{% endif %}">📦 Объявления</a>
         {% if role == 'admin' %}
@@ -294,8 +295,14 @@
         {% endif %}
         <a href="/feedback" class="nav-item {% if current_path.startswith('/feed') %}active{% endif %}">📩 Обратная связь</a>
         <a href="/emergencies" class="nav-item {% if current_path.startswith('/emerg') %}active{% endif %}" style="color: #f87171;">🚨 Центр ЧС</a>
+        <a href="/jobs" class="nav-item {% if current_path.startswith('/job') %}active{% endif %}">💼 Вакансии</a>
         
-        <a href="https://t.me/SKY_RENT_HUB_BOT" class="nav-item" target="_blank" style="margin-top: 20px;">🤖 Открыть бота</a>
+        <div style="height: 1px; background: var(--glass-border); margin: 10px 0;"></div>
+        <a href="/vision" class="nav-item {% if current_path.startswith('/vision') %}active{% endif %}">👁️ AI-Зрение</a>
+        <a href="/fleet" class="nav-item {% if current_path.startswith('/fleet') %}active{% endif %}">🚁 Ангар (Fleet)</a>
+        <a href="/radar" class="nav-item {% if current_path.startswith('/radar') %}active{% endif %}" style="color: #00f2fe;">📈 Арбитраж-Радар</a>
+        
+        <a href="https://t.me/SKY_RENT_HUB_BOT" class="nav-item" target="_blank" style="margin-top: 20px;">🤖 Открыть Горизонт Хаб</a>
         <a href="/logout" class="nav-item logout-btn">🚪 Выйти</a>
     </div>
 
