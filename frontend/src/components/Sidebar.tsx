@@ -31,7 +31,9 @@ import {
   Smartphone,
   Rocket
 } from "lucide-react";
+import dynamic from "next/dynamic";
 
+const TelegramLoginWidget = dynamic(() => import("@/components/TelegramLoginWidget"), { ssr: false });
 
 // Nav item type (Фаза 29.3 + 35)
 type NavItem = {
@@ -50,6 +52,7 @@ const NAV_GROUPS: NavGroup[] = [
     title: "Коммерция (B2B)",
     items: [
       { name: "Радар Защиты & B2G",    href: "/dashboard/radar",       icon: Target,    theme: "khokhloma" },
+      { name: "Биржа Работ & Заказы",  href: "/jobs",                  icon: Briefcase, theme: "khokhloma" },
       { name: "Мои Тендеры",           href: "/dashboard/tenders",    icon: Briefcase, theme: "tricolor" },
       { name: "Лизинг Дронов",         href: "/dashboard/leasing",    icon: Landmark,  theme: "khokhloma" },
       { name: "Констр. ТЗ БАС",       href: "/dashboard/constructor",icon: Wrench,    theme: "tricolor" },
@@ -203,11 +206,16 @@ export default function Sidebar() {
 
       {/* Быстрая кнопка ОрВД (все равно нужна как призыв к действию) */}
       <div className="p-4 border-t border-white/5 relative overflow-hidden shrink-0 group bg-[#0D0D0F]">
-        <div className="bg-gradient-to-tr from-blue-500/20 to-transparent border border-blue-500/30 rounded-xl p-4 text-center relative z-10 transition-all">
+        <div className="bg-gradient-to-tr from-blue-500/20 to-transparent border border-blue-500/30 rounded-xl p-4 text-center relative z-10 transition-all mb-4">
           <p className="text-[10px] text-gray-400 font-black mb-2 tracking-widest uppercase">Интеграция ЕС ОрВД</p>
           <Link href="/dashboard/legal" className="block w-full py-2.5 text-[12px] font-bold bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors border border-blue-400/50 flex items-center justify-center gap-2">
             <Plane className="w-4 h-4" /> Согласовать вылет
           </Link>
+        </div>
+        
+        {/* Telegram Login Widget (Desktop) */}
+        <div className="flex justify-center border-t border-white/10 pt-4">
+          <TelegramLoginWidget botName="SkyRentAIBot" />
         </div>
       </div>
     </aside>

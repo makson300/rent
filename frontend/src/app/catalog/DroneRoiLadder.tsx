@@ -30,7 +30,7 @@ export default function DroneRoiLadder() {
               Индекс Окупаемости B2G
               <span className="bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded uppercase font-bold tracking-widest animate-pulse">Live AI</span>
             </h2>
-            <p className="text-xs text-gray-500 mt-0.5">Нейросеть проанализировала {Math.floor(Math.random() * 500) + 9000} тендеров за вас.</p>
+            <p className="text-xs text-gray-500 mt-0.5">Нейросеть проанализировала более 9000 тендеров за вас.</p>
           </div>
         </div>
         

@@ -17,7 +17,7 @@ const MODULES = [
   { icon: "🏭", label: "Лизинг",        href: "/dashboard/leasing",         desc: "Финансирование дронов" },
   { icon: "📊", label: "Арбитраж",      href: "/dashboard/radar",           desc: "AI-радар тендеров" },
   { icon: "🚨", label: "МЧС Резерв",    href: "/for-pilots",                desc: "Добровольный реестр ПСО" },
-  { icon: "🏢", label: "Для бизнеса",   href: "/for-business",              desc: "Корпоративная программа" },
+  { icon: "🏢", label: "Для бизнеса",   href: "/franchise",              desc: "Корпоративная программа" },
   { icon: "🤝", label: "Франшиза",      href: "/franchise",                 desc: "Горизонт в вашем регионе" },
 ];
 

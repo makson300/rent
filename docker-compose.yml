@@ -54,7 +54,7 @@ services:
       context: .
       dockerfile: Dockerfile.frontend
       args:
-        NEXT_PUBLIC_API_URL: http://45.12.5.177
+        NEXT_PUBLIC_API_URL: https://45.12.5.177.nip.io
     restart: always
     ports:
       - "3000:3000"

@@ -72,7 +72,7 @@ async def process_and_save_vacancies(bot: Bot, db_session: AsyncSession):
         if salary_dict:
             from_s = salary_dict.get("from")
             to_s = salary_dict.get("to")
-            curr = salary_dict.get("currency", "RUR")
+            curr = salary_dict.get("currency", "RUR").replace("RUR", "₽")
             if from_s and to_s:
                 budget = f"От {from_s} до {to_s} {curr}"
             elif from_s:

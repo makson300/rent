@@ -96,7 +96,7 @@ export default async function Jobs({
                   
                   <div className="flex items-end justify-between mt-auto pt-4 border-t border-white/5 relative z-10">
                     <div className="font-mono text-2xl font-bold text-white drop-shadow-md">
-                      {job.budget}
+                      {job.budget?.replace("RUR", "₽")}
                     </div>
                     <button className="bg-gradient-to-r from-tricolor-blue to-blue-800 hover:from-blue-600 hover:to-blue-900 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-tricolor-blue/30 transition-all opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0">
                       Откликнуться
