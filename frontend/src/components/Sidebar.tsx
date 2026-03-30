@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
@@ -16,11 +17,23 @@ import {
   Target,
   Plane,
   HeartPulse,
-  Wallet
+  Wallet,
+  Star
 } from "lucide-react";
 
-// Логические группы кнопок (Фаза 29.3)
-const NAV_GROUPS = [
+// Nav item type (Фаза 29.3 + 35)
+type NavItem = {
+  name: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  theme: "khokhloma" | "tricolor";
+  pulse?: boolean;
+  emergency?: boolean;
+};
+
+type NavGroup = { title: string; items: NavItem[] };
+
+const NAV_GROUPS: NavGroup[] = [
   {
     title: "Коммерция (B2B)",
     items: [
@@ -47,7 +60,7 @@ const NAV_GROUPS = [
   {
     title: "Управление",
     items: [
-      { name: "Профиль Пилота", href: "/dashboard", icon: UserCircle, theme: "khokhloma" },
+      { name: "Профиль Пилота", href: "/dashboard/pilot/profile", icon: Star, theme: "khokhloma" },
       { name: "Верификация Юр. Лица", href: "/dashboard/legal", icon: Scale, theme: "tricolor" },
       { name: "Панель Администратора", href: "https://45.12.5.177.nip.io/", icon: Settings, theme: "tricolor" },
       { name: "На Главную", href: "/", icon: Home, theme: "khokhloma" },
