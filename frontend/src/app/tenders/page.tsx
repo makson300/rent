@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Briefcase, MapPin, Clock, ShieldCheck, FileText, CheckCircle2, ChevronRight, X, ShoppingCart, Zap } from "lucide-react";
+import { Briefcase, MapPin, Clock, ShieldCheck, FileText, CheckCircle2, ChevronRight, X, ShoppingCart, Zap, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { api } from "@/lib/api";
 
 export default function TendersPage() {
   const [tenders, setTenders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedTender, setSelectedTender] = useState<any>(null);
   const [bidFormOpen, setBidFormOpen] = useState(false);
   const [priceOffer, setPriceOffer] = useState("");
@@ -16,10 +17,13 @@ export default function TendersPage() {
 
   const fetchTenders = async () => {
     try {
+      setLoading(true);
+      setError(null);
       const data = await api.get<any[]>("/tenders");
       if (Array.isArray(data)) setTenders(data);
-    } catch {
-      console.error("Error fetching tenders");
+    } catch (err: any) {
+      console.error("Error fetching tenders", err);
+      setError(err?.message || "Ошибка соединения с сервером");
     } finally {
       setLoading(false);
     }
@@ -98,6 +102,13 @@ export default function TendersPage() {
                {[1, 2, 3].map(i => (
                  <div key={i} className="h-32 bg-white/5 rounded-2xl animate-pulse"></div>
                ))}
+             </div>
+          ) : error ? (
+             <div className="p-12 text-center rounded-2xl border border-red-500/20 bg-red-500/5">
+                <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                <h3 className="text-xl font-bold mb-2 text-white">Сервис временно недоступен</h3>
+                <p className="text-gray-400 mb-6">Не удалось загрузить тендеры ({error}). Попробуйте обновить страницу.</p>
+                <button onClick={fetchTenders} className="px-6 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors font-bold text-sm">Обновить</button>
              </div>
           ) : tenders.length === 0 ? (
              <div className="p-12 text-center rounded-2xl border border-dashed border-white/10 bg-white/5">

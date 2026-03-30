@@ -1,8 +1,10 @@
 "use client";
 
 import { Menu, Settings, FileText } from "lucide-react";
-import TelegramLoginWidget from "@/components/TelegramLoginWidget";
+import dynamic from "next/dynamic";
 import Link from "next/link";
+
+const TelegramLoginWidget = dynamic(() => import("@/components/TelegramLoginWidget"), { ssr: false });
 
 export default function TopNavbar() {
   return (

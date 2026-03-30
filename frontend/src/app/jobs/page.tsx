@@ -14,13 +14,13 @@ async function getJobs(searchParams: { [key: string]: string | string[] | undefi
     const res = await fetch(url.toString(), { cache: "no-store" });
     if (!res.ok) {
       console.error("Failed to fetch jobs:", res.status);
-      return [];
+      return { data: [], error: `Ошибка сервера (Код ${res.status})` };
     }
     const data = await res.json();
-    return data.jobs || [];
-  } catch (err) {
+    return { data: data.jobs || [], error: null };
+  } catch (err: any) {
     console.error("Fetch error:", err);
-    return [];
+    return { data: [], error: err.message || "Ошибка соединения с сервером (SSL или сеть)" };
   }
 }
 
@@ -30,7 +30,7 @@ export default async function Jobs({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const params = await searchParams;
-  const jobs = await getJobs(params);
+  const { data: jobs, error } = await getJobs(params);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -41,8 +41,8 @@ export default async function Jobs({
           <p className="text-gray-400 mt-2">Официальные заказы, государственные контракты и B2B услуги</p>
         </div>
         <p className="text-gray-300 mt-4 md:mt-0 bg-tricolor-blue/10 px-4 py-1.5 rounded-full text-sm font-bold border border-tricolor-blue/30 flex items-center gap-2 shadow-[0_0_15px_rgba(0,57,166,0.2)]">
-          <span className="w-2 h-2 rounded-full bg-tricolor-blue animate-pulse"></span>
-          Актуально заданий: {jobs.length}
+          <span className={`w-2 h-2 rounded-full animate-pulse ${error ? "bg-red-500" : "bg-tricolor-blue"}`}></span>
+          {error ? "Сервер недоступен" : `Актуально заданий: ${jobs.length}`}
         </p>
       </div>
 
@@ -54,7 +54,15 @@ export default async function Jobs({
 
         {/* Jobs Grid */}
         <div className="flex-1">
-          {jobs.length === 0 ? (
+          {error ? (
+            <div className="text-center py-24 bg-red-500/5 rounded-2xl border border-red-500/20 flex flex-col items-center justify-center">
+              <svg className="w-16 h-16 text-red-500 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <h3 className="text-xl font-bold mb-2 text-white">Сервис временно недоступен</h3>
+              <p className="text-gray-400 max-w-lg text-center">Не удалось загрузить биржу работ ({error}). Повторите попытку позже.</p>
+            </div>
+          ) : jobs.length === 0 ? (
             <div className="text-center py-24 bg-white/5 rounded-2xl border border-white/10 flex flex-col items-center justify-center">
               <svg className="w-16 h-16 text-gray-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />

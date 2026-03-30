@@ -11,6 +11,7 @@ export default function WalletEscrowPage() {
   const [wallet, setWallet] = useState<any>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Hardcode ID for now since Next.js doesn't natively share Telegram WebApp state on this route yet
@@ -18,13 +19,16 @@ export default function WalletEscrowPage() {
 
   const fetchWalletData = async () => {
     try {
+      setIsLoading(true);
+      setError(null);
       const walletData = await api.get<{ ok: boolean; wallet: any }>(`/wallet/${USER_ID}`);
       const txData = await api.get<{ ok: boolean; transactions: any[] }>(`/wallet/${USER_ID}/transactions`);
 
       if (walletData.ok) setWallet(walletData.wallet);
       if (txData.ok) setTransactions(txData.transactions);
-    } catch {
-      console.error("Failed to load wallet");
+    } catch (err: any) {
+      console.error("Failed to load wallet", err);
+      setError(err?.message || "Ошибка соединения с сервером");
     } finally {
       setIsLoading(false);
     }
@@ -110,6 +114,13 @@ export default function WalletEscrowPage() {
       {isLoading ? (
         <div className="flex items-center justify-center p-20">
             <Loader2 className="w-8 h-8 text-khokhloma-gold animate-spin" />
+        </div>
+      ) : error ? (
+        <div className="p-12 text-center rounded-2xl border border-red-500/20 bg-red-500/5 mt-8">
+            <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <h3 className="text-xl font-bold mb-2 text-white">Сервис временно недоступен</h3>
+            <p className="text-gray-400 mb-6">Не удалось загрузить данные кошелька ({error}). Попробуйте обновить страницу.</p>
+            <button onClick={fetchWalletData} className="px-6 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors font-bold text-sm">Обновить</button>
         </div>
       ) : (
       <>
