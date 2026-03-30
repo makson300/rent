@@ -2417,6 +2417,79 @@ async def buy_insurance(data: InsuranceBuyRequest, session: AsyncSession = Depen
         logger.error(f"Insurance Buy Error: {e}")
         return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
 
+# --- Airspace Auth (Phase 26) ---
+
+class AirspacePlanRequest(BaseModel):
+    telegram_id: int
+    lat: float
+    lng: float
+    radius: int
+    height: int
+    start_time: str
+    end_time: str
+    drone_model: str
+
+@app.post("/api/v1/airspace/plan/generate")
+async def generate_airspace_plan(data: AirspacePlanRequest, session: AsyncSession = Depends(get_session)):
+    """
+    Генерирует заявку на Использование Воздушного Пространства (ИВП)
+    в формате телеграфного сообщения для подачи в ФГИС ОрВД.
+    """
+    try:
+        from datetime import datetime
+        # Парсим время
+        start_dt = datetime.fromisoformat(data.start_time.replace('Z', '+00:00'))
+        end_dt = datetime.fromisoformat(data.end_time.replace('Z', '+00:00'))
+        
+        # Формат даты для ОрВД (ГГММДД и ЧЧММ)
+        date_str = start_dt.strftime("%y%m%d")
+        time_start = start_dt.strftime("%H%M")
+        time_end = end_dt.strftime("%H%M")
+        
+        # Конвертация координат (пример: 5545С03737В)
+        lat_dg = int(abs(data.lat))
+        lat_mn = int((abs(data.lat) - lat_dg) * 60)
+        lng_dg = int(abs(data.lng))
+        lng_mn = int((abs(data.lng) - lng_dg) * 60)
+        lat_dir = "С" if data.lat >= 0 else "Ю"
+        lng_dir = "В" if data.lng >= 0 else "З"
+        
+        coord_str = f"{lat_dg:02d}{lat_mn:02d}{lat_dir}{lng_dg:03d}{lng_mn:02d}{lng_dir}"
+        
+        # Формирование телеграфного сообщения (упрощенный формат СППИ)
+        # 1-й блок: Вид плана (SHR - Предварительный)
+        # 2-й блок: Опознавательный индекс или модель
+        # 3-й блок: Правила полетов (V - визуальные)
+        # 4-й блок: Тип и количество
+        flight_msg = (
+            f"(ПЛН-БПЛА{data.telegram_id[-4:] if str(data.telegram_id).isdigit() else '0000'}-У\n"
+            f"-{data.drone_model[:4].upper()}/Л-С/К\n"
+            f"-{coord_str}{time_start}\n"
+            f"-ДОФ/{date_str} РМК/АЭРОФОТОСЪЕМКА РАДИУС {data.radius}М ВЫСОТА ДО {data.height}М "
+            f"РАСЧЕТНОЕ ВРЕМЯ ОКОНЧАНИЯ {time_end})"
+        )
+        
+        # Отправляем в Телеграм пилоту
+        alert_text = (
+            f"✈️ <b>Ваш план полета ИВП Готов!</b>\n\n"
+            f"Район: <b>{coord_str}</b>\n"
+            f"Высота: до <b>{data.height} м</b>\n"
+            f"Время: с <b>{start_dt.strftime('%H:%M')}</b> до <b>{end_dt.strftime('%H:%M')}</b>\n\n"
+            f"Скопируйте текст ниже для подачи в Систему Представления Планов Полетов (СППИ):\n\n"
+            f"<code>{flight_msg}</code>\n\n"
+            f"⚠️ <b>Важно:</b> Не забудьте позвонить диспетчеру местного центра ОрВД за 2 часа до начала выполнения работ!"
+        )
+        try:
+            await app.state.bot.send_message(data.telegram_id, alert_text, parse_mode="HTML")
+        except:
+            pass
+            
+        return JSONResponse(content={"ok": True, "message_format": flight_msg, "coord_str": coord_str})
+        
+    except Exception as e:
+        logger.error(f"Airspace Plan Error: {e}")
+        return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
+
 if __name__ == "__main__":
     # Use the filename "dashboard" for uvicorn string reference
     uvicorn.run("dashboard:app", host="0.0.0.0", port=8000, reload=True)

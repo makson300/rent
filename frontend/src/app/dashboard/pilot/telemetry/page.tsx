@@ -15,6 +15,52 @@ export default function TelemetryUploadPage() {
 
     // В реальном приложении ID берется из локального стейта/сессии
     const MOCK_USER_ID = 0; 
+    const [activeTab, setActiveTab] = useState<"logs" | "orvd">("logs");
+
+    const [orvdForm, setOrvdForm] = useState({
+        lat: 55.7558, lng: 37.6173, radius: 500, height: 150,
+        start: new Date().toISOString().slice(0, 16),
+        end: new Date(Date.now() + 7200000).toISOString().slice(0, 16),
+        model: "DJI Mavic 3"
+    });
+    const [orvdResult, setOrvdResult] = useState<string | null>(null);
+    const [isGenerating, setIsGenerating] = useState(false);
+
+    const handleGenerateOrvd = async () => {
+        setIsGenerating(true);
+        const userStr = localStorage.getItem("skyrent_user");
+        let uid = MOCK_USER_ID;
+        if (userStr) {
+            try { uid = JSON.parse(userStr).telegram_id || JSON.parse(userStr).id; } catch {}
+        }
+        try {
+            const res = await fetch(`${API_BASE}/api/v1/airspace/plan/generate`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    telegram_id: uid,
+                    lat: orvdForm.lat,
+                    lng: orvdForm.lng,
+                    radius: orvdForm.radius,
+                    height: orvdForm.height,
+                    start_time: new Date(orvdForm.start).toISOString(),
+                    end_time: new Date(orvdForm.end).toISOString(),
+                    drone_model: orvdForm.model
+                })
+            });
+            const data = await res.json();
+            if (res.ok && data.ok) {
+                setOrvdResult(data.message_format);
+                toast.success("План успешно сгенерирован и отправлен в Телеграм!");
+            } else {
+                toast.error(data.error || "Ошибка генерации");
+            }
+        } catch (e) {
+            toast.error("Сетевая ошибка");
+        } finally {
+            setIsGenerating(false);
+        }
+    };
 
     const handleDragOver = (e: React.DragEvent) => {
         e.preventDefault();
@@ -84,18 +130,33 @@ export default function TelemetryUploadPage() {
 
     return (
         <div className="max-w-4xl mx-auto px-4 py-8">
-            <div className="mb-8">
+            <div className="mb-4">
                 <h1 className="text-3xl font-black text-white flex items-center gap-3">
                     <CloudRain className="w-8 h-8 text-blue-400" />
-                    Облачная Телеметрия ГОРИЗОНТ
+                    Управление Полетами
                 </h1>
                 <p className="text-gray-400 mt-2">
-                    Подтвердите свои часы налёта для доступа к высокобюджетным Государственным Тендерам (B2G). 
-                    Мы принимаем официальные полетные логи из приложений DJI Fly, DJI Pilot и Autel Explorer.
+                    Подтверждайте часы налёта логами DJI и запрашивайте воздушное пространство (ИВП) у ОрВД.
                 </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="flex border-b border-white/10 mb-8 border-khokhloma-gold/30">
+                <button 
+                  onClick={() => setActiveTab("logs")}
+                  className={`px-6 py-3 font-bold text-sm tracking-wide ${activeTab === 'logs' ? 'text-khokhloma-gold border-b-2 border-khokhloma-gold' : 'text-gray-400 hover:text-white'}`}
+                >
+                    ЗАГРУЗКА ЛОГОВ DJI
+                </button>
+                <button 
+                  onClick={() => setActiveTab("orvd")}
+                  className={`px-6 py-3 font-bold text-sm tracking-wide ${activeTab === 'orvd' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-gray-400 hover:text-white'}`}
+                >
+                    РАЗРЕШЕНИЕ ИВП (РОСАВИАЦИЯ)
+                </button>
+            </div>
+
+            {activeTab === "logs" && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4">
                 
                 {/* Левая панель - Drag and drop */}
                 <div className="md:col-span-2">
@@ -202,6 +263,83 @@ export default function TelemetryUploadPage() {
                 </div>
 
             </div>
+            )}
+
+            {/* ВКЛАДКА ИВП ОРВД */}
+            {activeTab === "orvd" && (
+                <div className="bg-[#0A0A0B] border border-blue-500/20 rounded-3xl p-8 animate-in fade-in slide-in-from-bottom-4">
+                    <h2 className="text-2xl font-bold text-white mb-6">Генератор Заявок на Полет (СППИ)</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-sm text-gray-400 block mb-1">Широта (N)</label>
+                                    <input type="number" step="0.0001" value={orvdForm.lat} onChange={e => setOrvdForm({...orvdForm, lat: parseFloat(e.target.value)})} className="w-full bg-[#18181b] border border-white/10 text-white p-3 rounded-lg" />
+                                </div>
+                                <div>
+                                    <label className="text-sm text-gray-400 block mb-1">Долгота (E)</label>
+                                    <input type="number" step="0.0001" value={orvdForm.lng} onChange={e => setOrvdForm({...orvdForm, lng: parseFloat(e.target.value)})} className="w-full bg-[#18181b] border border-white/10 text-white p-3 rounded-lg" />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-sm text-gray-400 block mb-1">Радиус (м)</label>
+                                    <input type="number" value={orvdForm.radius} onChange={e => setOrvdForm({...orvdForm, radius: parseInt(e.target.value)})} className="w-full bg-[#18181b] border border-white/10 text-white p-3 rounded-lg" />
+                                </div>
+                                <div>
+                                    <label className="text-sm text-gray-400 block mb-1">Высота до (м)</label>
+                                    <input type="number" value={orvdForm.height} onChange={e => setOrvdForm({...orvdForm, height: parseInt(e.target.value)})} className="w-full bg-[#18181b] border border-white/10 text-white p-3 rounded-lg" />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-sm text-gray-400 block mb-1">Начало (UTC)</label>
+                                    <input type="datetime-local" value={orvdForm.start} onChange={e => setOrvdForm({...orvdForm, start: e.target.value})} className="w-full bg-[#18181b] border border-white/10 text-gray-300 p-3 rounded-lg" />
+                                </div>
+                                <div>
+                                    <label className="text-sm text-gray-400 block mb-1">Окончание (UTC)</label>
+                                    <input type="datetime-local" value={orvdForm.end} onChange={e => setOrvdForm({...orvdForm, end: e.target.value})} className="w-full bg-[#18181b] border border-white/10 text-gray-300 p-3 rounded-lg" />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-sm text-gray-400 block mb-1">Модель БВС</label>
+                                <input type="text" value={orvdForm.model} onChange={e => setOrvdForm({...orvdForm, model: e.target.value})} className="w-full bg-[#18181b] border border-white/10 text-white p-3 rounded-lg" />
+                            </div>
+                            <button
+                                onClick={handleGenerateOrvd}
+                                disabled={isGenerating}
+                                className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl mt-4 flex items-center justify-center gap-2"
+                            >
+                                {isGenerating ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileText className="w-5 h-5" />}
+                                Сгенерировать Формализованную Заявку
+                            </button>
+                        </div>
+
+                        <div className="bg-[#121214] border border-white/5 rounded-2xl p-6 flex flex-col">
+                            <h3 className="text-lg font-bold text-gray-300 mb-4 flex items-center gap-2">
+                                <AlertCircle className="w-5 h-5 text-gray-500" />
+                                Ваш План Полета (ТШС)
+                            </h3>
+                            {orvdResult ? (
+                                <div className="space-y-4 flex-1 flex flex-col">
+                                    <textarea 
+                                        readOnly 
+                                        value={orvdResult}
+                                        className="w-full flex-1 min-h-[150px] font-mono text-sm bg-black/50 border border-blue-500/30 text-blue-400 p-4 rounded-xl resize-none outline-none"
+                                    />
+                                    <p className="text-xs text-gray-500 text-center">
+                                        Скопируйте этот текст и отправьте в СППИ Росавиации. Копия отправлена в Telegram.
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="flex-1 flex items-center justify-center text-gray-600 italic">
+                                    Заполните параметры и нажмите генерацию...
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
