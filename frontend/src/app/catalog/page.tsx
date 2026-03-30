@@ -1,5 +1,6 @@
 import Link from "next/link";
 import CatalogFilters from "./CatalogFilters";
+import DroneRoiLadder from "./DroneRoiLadder";
 
 export const revalidate = 0; // Dynamic component due to searchParams
 
@@ -44,6 +45,8 @@ export default async function Catalog({
           Найдено: {listings.length}
         </p>
       </div>
+
+      <DroneRoiLadder />
 
       <div className="flex flex-col lg:flex-row gap-8">
         {/* Filters Sidebar */}
