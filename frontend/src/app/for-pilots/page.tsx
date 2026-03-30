@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, MapPin, Briefcase, FileCheck, ShieldCheck, Heart, ArrowRight } from "lucide-react";
+import { Box, MapPin, Briefcase, FileCheck, ShieldCheck, Heart, ArrowRight, BookOpen, Banknote, Rocket, Lightbulb } from "lucide-react";
 import Link from "next/link";
 
 export default function ForPilotsPage() {
@@ -103,6 +103,85 @@ export default function ForPilotsPage() {
                         <p className="text-gray-400 text-sm leading-relaxed max-w-xl">
                             Храните все сертификаты внешнего пилота в одном профиле. Система автоматически верифицирует их через Минтранс и повышает ваш траст-фактор в глазах заказчиков (B2B). Бесплатное обучение для новичков.
                         </p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Engineer & Startup Showcase (Phase 33.3) */}
+            <div className="border-t border-white/5 bg-[#0D0D12] py-24 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-600/10 rounded-full blur-[150px] pointer-events-none"></div>
+                <div className="max-w-7xl mx-auto px-4 relative z-10">
+                    <div className="flex flex-col md:flex-row justify-between items-end mb-12 gap-6">
+                        <div>
+                            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-xs font-bold text-blue-400 mb-4 uppercase tracking-widest">
+                                <Rocket className="w-4 h-4" /> Хаб Инженеров
+                            </div>
+                            <h2 className="text-3xl md:text-5xl font-black mb-4">Витрина <span className="text-blue-500">Стартапов</span></h2>
+                            <p className="text-gray-400 text-lg max-w-2xl">
+                                Платформа "Горизонт" поддерживает не только пилотов, но и конструкторов. Мы связываем прорывные идеи с инвесторами и государственными фондами.
+                            </p>
+                        </div>
+                        <button className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-all shadow-[0_0_20px_rgba(37,99,235,0.3)] flex items-center gap-2">
+                            <Lightbulb className="w-5 h-5" /> Предложить Идею
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* Startup Card 1 */}
+                        <div className="bg-[#15151A] border border-white/5 rounded-3xl p-6 hover:border-white/20 transition-all group">
+                            <div className="h-40 bg-zinc-900 rounded-2xl mb-6 relative overflow-hidden flex items-center justify-center border border-white/5 text-gray-700 font-bold">
+                                [Рендер Проекта Агро-Дрона]
+                            </div>
+                            <div className="flex items-center gap-2 text-xs font-bold text-khokhloma-gold bg-khokhloma-gold/10 px-2 py-1 rounded w-max mb-3 uppercase tracking-wide">
+                                Ищем Инвестиции
+                            </div>
+                            <h3 className="text-xl font-bold mb-2 text-white group-hover:text-blue-400 transition-colors">SkyNet Agro T-X</h3>
+                            <p className="text-sm text-gray-400">Тяжелый агродрон с полезной нагрузкой 60кг и локализацией 90% производства в РФ.</p>
+                        </div>
+                        {/* Startup Card 2 */}
+                        <div className="bg-[#15151A] border border-white/5 rounded-3xl p-6 hover:border-white/20 transition-all group">
+                            <div className="h-40 bg-zinc-900 rounded-2xl mb-6 relative overflow-hidden flex items-center justify-center border border-white/5 text-gray-700 font-bold">
+                                [Рендер Видеолинка]
+                            </div>
+                            <div className="flex items-center gap-2 text-xs font-bold text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded w-max mb-3 uppercase tracking-wide">
+                                Грант Получен
+                            </div>
+                            <h3 className="text-xl font-bold mb-2 text-white group-hover:text-blue-400 transition-colors">Horizon Link Pro</h3>
+                            <p className="text-sm text-gray-400">Защищенный цифровой видеолинк для инспекционных дронов, невосприимчивый к РЭБ помехам.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Legal Archive & Subsidies (Phase 33.1 & 33.2) */}
+            <div className="border-t border-white/5 py-24 px-4 bg-[#0A0A0B]">
+                <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* Subsidies */}
+                    <div className="bg-gradient-to-br from-[#121214] to-[#1A1A1D] border border-white/10 rounded-[2rem] p-10 relative overflow-hidden group">
+                        <div className="w-16 h-16 bg-emerald-500/10 rounded-2xl flex items-center justify-center mb-8 border border-emerald-500/20">
+                            <Banknote className="w-8 h-8 text-emerald-400" />
+                        </div>
+                        <h3 className="text-3xl font-black text-white mb-4">Государственные <span className="text-emerald-400">Субсидии</span></h3>
+                        <p className="text-gray-400 mb-8 leading-relaxed">
+                            Узнайте, как получить дотации от Минпромторга на закупку отечественных беспилотников и компенсацию части затрат на сертификацию инженеров.
+                        </p>
+                        <button className="flex items-center gap-2 text-emerald-400 font-bold hover:text-emerald-300 transition-colors">
+                            Открыть базу программ поддержки <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                        </button>
+                    </div>
+
+                    {/* Legal Archive */}
+                    <div className="bg-gradient-to-br from-[#121214] to-[#1A1A1D] border border-white/10 rounded-[2rem] p-10 relative overflow-hidden group">
+                         <div className="w-16 h-16 bg-purple-500/10 rounded-2xl flex items-center justify-center mb-8 border border-purple-500/20">
+                            <BookOpen className="w-8 h-8 text-purple-400" />
+                        </div>
+                        <h3 className="text-3xl font-black text-white mb-4">Правовой <span className="text-purple-400">Архив</span></h3>
+                        <p className="text-gray-400 mb-8 leading-relaxed">
+                            Актуальный Воздушный Кодекс, постановления о зонировании (ЭПР) и правила регистрации БАС. ИИ-парсер ежедневно обновляет базу законов.
+                        </p>
+                        <button className="flex items-center gap-2 text-purple-400 font-bold hover:text-purple-300 transition-colors">
+                            Изучить нормативную базу <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                        </button>
                     </div>
                 </div>
             </div>
