@@ -19,8 +19,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ru" className="dark scroll-smooth">
-      <body className={`${inter.className} bg-[#0A0A0B] text-white selection:bg-tricolor-blue/30 overflow-hidden`}>
+    <html lang="ru" className="dark" data-scroll-behavior="smooth" suppressHydrationWarning>
+      <body className={`${inter.className} bg-[#0A0A0B] text-white selection:bg-tricolor-blue/30 overflow-hidden`} suppressHydrationWarning>
         <AuthProvider>
           <div className="flex h-screen bg-[#0A0A0B]">
           {/* Desktop Sidebar */}

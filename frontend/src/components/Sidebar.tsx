@@ -9,17 +9,29 @@ import {
   Briefcase, 
   Map, 
   GraduationCap, 
-  ShieldAlert, 
-  FileText, 
-  UserCircle,
   Scale,
   Settings,
   Target,
   Plane,
   HeartPulse,
   Wallet,
-  Star
+  Star,
+  Landmark,
+  Siren,
+  Radar,
+  Wrench,
+  ScrollText,
+  Microscope,
+  BookOpenCheck,
+  Trophy,
+  Satellite,
+  Warehouse,
+  Globe2,
+  Coins,
+  Smartphone,
+  Rocket
 } from "lucide-react";
+
 
 // Nav item type (Фаза 29.3 + 35)
 type NavItem = {
@@ -37,33 +49,70 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "Коммерция (B2B)",
     items: [
-      { name: "Радар Защиты & B2G", href: "/dashboard/radar", icon: Target, theme: "khokhloma" },
-      { name: "Мои Тендеры", href: "/dashboard/tenders", icon: Briefcase, theme: "tricolor" },
-      { name: "Маркетплейс Аренды", href: "/catalog", icon: ShoppingCart, theme: "khokhloma" },
-      { name: "Франшиза 'Горизонт'", href: "/franchise", icon: Map, theme: "khokhloma" },
+      { name: "Радар Защиты & B2G",    href: "/dashboard/radar",       icon: Target,    theme: "khokhloma" },
+      { name: "Мои Тендеры",           href: "/dashboard/tenders",    icon: Briefcase, theme: "tricolor" },
+      { name: "Лизинг Дронов",         href: "/dashboard/leasing",    icon: Landmark,  theme: "khokhloma" },
+      { name: "Констр. ТЗ БАС",       href: "/dashboard/constructor",icon: Wrench,    theme: "tricolor" },
+      { name: "Маркетплейс Аренды",    href: "/catalog",               icon: ShoppingCart, theme: "khokhloma" },
+      { name: "Франшиза 'Горизонт'",  href: "/franchise",             icon: Map,       theme: "khokhloma" },
     ]
   },
   {
     title: "Авиа-Утилиты",
     items: [
-      { name: "Центр Полетов (ОрВД)", href: "/dashboard/pilot/telemetry", icon: Plane, theme: "tricolor" },
-      { name: "Кошелек & КАСКО", href: "/wallet", icon: Wallet, theme: "khokhloma", pulse: true },
-      { name: "Реестр и Обучение", href: "/education", icon: GraduationCap, theme: "tricolor" },
+      { name: "ОрВД Live (Зоны)",       href: "/dashboard/airspace",   icon: Radar,     theme: "tricolor" },
+      { name: "Центр Полетов (ОрВД)",    href: "/dashboard/pilot/telemetry", icon: Plane,     theme: "tricolor" },
+      { name: "Кошелек & КАСКО",  href: "/wallet",                icon: Wallet,    theme: "khokhloma", pulse: true },
+      { name: "Реестр и Обучение",   href: "/education",             icon: GraduationCap, theme: "tricolor" },
     ]
   },
   {
     title: "Резерв МЧС 🚨",
     items: [
-      { name: "Штаб Спасения (ПСО)", href: "/dashboard/radar?filter=emergency", icon: HeartPulse, theme: "khokhloma", emergency: true },
+      { name: "Штаб Диспетчера ЧС",  href: "/dashboard/emergency", icon: Siren,     theme: "khokhloma", emergency: true, pulse: true },
+      { name: "Карта Пилотов (ПСО)", href: "/dashboard/radar?filter=emergency", icon: HeartPulse, theme: "khokhloma", emergency: true },
     ]
   },
   {
+    title: "Инженерная Лаборатория",
+    items: [
+      { name: "Констр. ТЗ БАС",     href: "/dashboard/constructor", icon: Wrench,       theme: "tricolor" },
+      { name: "Вирт. Полигон",     href: "/dashboard/polygon",     icon: Microscope,   theme: "tricolor" },
+      { name: "Патент. Бюро",     href: "/dashboard/patent",      icon: ScrollText,   theme: "khokhloma" },
+    ]
+  },
+  {
+    title: "Академия Горизонт",
+    items: [
+      { name: "Курсы и Сертификация", href: "/dashboard/academy",    icon: BookOpenCheck, theme: "tricolor" },
+      { name: "Рейтинг & Лидерборд",   href: "/dashboard/leaderboard",icon: Trophy,        theme: "khokhloma" },
+      { name: "Реестр и Обучение",   href: "/education",            icon: GraduationCap, theme: "tricolor" },
+    ]
+  },
+  {
+    title: "Hardware IoT 🛫",
+    items: [
+      { name: "Дронопорты 'Горизонт'", href: "/dashboard/droneports", icon: Warehouse,  theme: "tricolor" },
+      { name: "Квазар-ID Трекер",    href: "/dashboard/tracker",    icon: Satellite, theme: "tricolor" },
+    ]
+  },
+  {
+    title: "Экспансия & Инвесторам",
+    items: [
+      { name: "Горизонт.СНГ (КЗ, БЫ)",  href: "/dashboard/sng",         icon: Globe2,      theme: "khokhloma" },
+      { name: "Data Marketplace",        href: "/dashboard/data-market", icon: Coins,       theme: "khokhloma" },
+      { name: "Горизонт GCS Мобайл",    href: "/dashboard/gcs",         icon: Smartphone,  theme: "tricolor" },
+      { name: "IPO Dashboard 2029",      href: "/dashboard/ipo",         icon: Rocket,      theme: "khokhloma", pulse: true },
+    ]
+  },
+
+  {
     title: "Управление",
     items: [
-      { name: "Профиль Пилота", href: "/dashboard/pilot/profile", icon: Star, theme: "khokhloma" },
-      { name: "Верификация Юр. Лица", href: "/dashboard/legal", icon: Scale, theme: "tricolor" },
+      { name: "Профиль Пилота",        href: "/dashboard/pilot/profile",   icon: Star,     theme: "khokhloma" },
+      { name: "Верификация Юр. Лица",  href: "/dashboard/legal",            icon: Scale,    theme: "tricolor" },
       { name: "Панель Администратора", href: "https://45.12.5.177.nip.io/", icon: Settings, theme: "tricolor" },
-      { name: "На Главную", href: "/", icon: Home, theme: "khokhloma" },
+      { name: "На Главную",            href: "/",                           icon: Home,     theme: "khokhloma" },
     ]
   }
 ];

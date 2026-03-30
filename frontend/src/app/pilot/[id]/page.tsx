@@ -4,8 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { ShieldCheck, Award, Clock, Star, MapPin, Loader2, Building2, User } from "lucide-react";
 import { toast } from "react-hot-toast";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
+import { api } from "@/lib/api";
 
 interface Certificate {
     type: string;
@@ -37,35 +36,26 @@ export default function PilotProfilePage() {
 
     const fetchProfile = async () => {
         try {
-            const res = await fetch(`${API_BASE}/api/v1/pilots/${telegram_id}`);
-            if (res.ok) {
-                const data = await res.json();
-                setProfile(data.pilot);
-            } else {
-                toast.error("Пилот не найден");
-            }
+            const data = await api.get<{ pilot: PilotProfile }>(`/pilots/${telegram_id}`);
+            setProfile(data.pilot);
         } catch {
-            toast.error("Ошибка при подключении к серверу");
+            toast.error("Пилот не найден или ошибка сервера");
         } finally {
             setLoading(false);
         }
     };
 
     const handleGosuslugiVerification = async () => {
-        // Эмуляция входа через ЕСИА (Госуслуги) для тестов MVP
         const id = Number(telegram_id);
         if (!id) return;
         
         try {
-            const res = await fetch(`${API_BASE}/api/v1/auth/gosuslugi_login?telegram_id=${id}`, {
-                method: "POST"
-            });
-            const data = await res.json();
+            const data = await api.post<{ ok: boolean; message?: string; error?: string }>(`/auth/gosuslugi_login?telegram_id=${id}`, {});
             if (data.ok) {
-                toast.success(data.message);
-                fetchProfile(); // refresh data
+                toast.success(data.message ?? "Успешно");
+                fetchProfile();
             } else {
-                toast.error(data.error);
+                toast.error(data.error ?? "Ошибка");
             }
         } catch {
             toast.error("Сбой интеграции с Госуслугами");

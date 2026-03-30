@@ -5,7 +5,8 @@ import DroneRoiLadder from "./DroneRoiLadder";
 export const revalidate = 0; // Dynamic component due to searchParams
 
 async function getListings(searchParams: { [key: string]: string | string[] | undefined }) {
-  const url = new URL("http://127.0.0.1:8000/api/v1/public/listings");
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+  const url = new URL(`${baseUrl}/api/v1/public/listings`);
   
   if (searchParams.category_id) url.searchParams.append("category_id", searchParams.category_id as string);
   if (searchParams.city) url.searchParams.append("city", searchParams.city as string);
@@ -28,9 +29,10 @@ async function getListings(searchParams: { [key: string]: string | string[] | un
 export default async function Catalog({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const listings = await getListings(searchParams);
+  const params = await searchParams;
+  const listings = await getListings(params);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

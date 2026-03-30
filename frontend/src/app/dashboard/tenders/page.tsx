@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Briefcase, Building2, MapPin, Calendar, Banknote, ShieldCheck, FileCheck, ArrowRight, Loader2, Cpu, Users, BarChart2, TrendingUp, Zap, ChevronDown, Star } from "lucide-react";
 import DroneLoader from "@/components/DroneLoader";
 import { toast } from "react-hot-toast";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
+import { api } from "@/lib/api";
 
 interface Tender {
   id: number;
@@ -56,51 +55,41 @@ export default function TendersPage() {
     fetchTenders();
   }, []);
 
-  const fetchTenders = async () => {
+  const fetchTenders = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/v1/tenders`);
-      if (res.ok) {
-        const data = await res.json();
-        setTenders(data.tenders || []);
-      }
+      const data = await api.get<{ tenders: Tender[] }>("/tenders");
+      setTenders(data.tenders ?? []);
     } catch {
       toast.error("Ошибка при загрузке тендеров");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const setTenderPrice = (id: number, val: number) => {
     setPriceOffers(prev => ({ ...prev, [id]: val }));
   };
 
   const handleBid = async (tender: Tender) => {
-    if (!userId) {
-      toast.error("Пожалуйста, войдите в систему");
-      return;
-    }
+    if (!userId) { toast.error("Пожалуйста, войдите в систему"); return; }
     const offer = priceOffers[tender.id] || tender.budget;
     setBiddingId(tender.id);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/tenders/bid`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tender_id: tender.id,
-          contractor_id: userId,
-          price_offer: offer,
-          comment: "Отклик с платформы 'Горизонт Хаб'. Техника готова.",
-        }),
+      const json = await api.post<{ ok: boolean; ai_reason?: string; error?: string }>("/tenders/bid", {
+        tender_id: tender.id,
+        contractor_id: userId,
+        price_offer: offer,
+        comment: "Отклик с платформы 'Горизонт Хаб'. Техника готова.",
       });
-      const json = await res.json();
-      if (res.ok && json.ok) {
+      if (json.ok) {
         toast.success("Ваша заявка успешно подана! Средства холдированы.");
       } else {
-        if (json.ai_reason) {
-          toast.error(`⚠️ Блокировка AI Анти-Демпинг: ${json.ai_reason}`, { duration: 6000 });
-        } else {
-          toast.error(json.error || "Ошибка при подаче заявки. Проверьте баланс.");
-        }
+        toast.error(
+          json.ai_reason
+            ? `⚠️ Блокировка AI Анти-Демпинг: ${json.ai_reason}`
+            : json.error ?? "Ошибка при подаче заявки. Проверьте баланс.",
+          { duration: 6000 },
+        );
       }
     } catch {
       toast.error("Не удалось связаться с сервером");
@@ -113,19 +102,14 @@ export default function TendersPage() {
   const handleAiRoute = async (tender: Tender) => {
     setAiLoading(tender.id);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/ai/route-calculator`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          drone_name: "DJI Mavic 3 Enterprise",
-          battery_mah: 5000,
-          payload_kg: 2.5,
-          distance_km: (tender.budget / 100000) * 10,
-          wind_ms: 5.5,
-        }),
+      const data = await api.post<{ ok: boolean; result?: { is_possible: boolean; [k: string]: unknown } }>("/ai/route-calculator", {
+        drone_name: "DJI Mavic 3 Enterprise",
+        battery_mah: 5000,
+        payload_kg: 2.5,
+        distance_km: (tender.budget / 100000) * 10,
+        wind_ms: 5.5,
       });
-      const data = await res.json();
-      if (res.ok && data.ok) {
+      if (data.ok && data.result) {
         const resObj = data.result;
         if (resObj.is_possible) {
           toast.success(`🤖 ИИ: Вылет возможен.\n${resObj.explanation}\nОстаток батареи: ${resObj.estimated_battery_left_percent}%`, { duration: 6000 });

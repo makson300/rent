@@ -17,4 +17,23 @@ from db.models.dispute import EscrowDispute
 from db.models.message import Message
 from db.models.insurance import InsurancePolicy
 
-__all__ = ["User", "Category", "Tariff", "Listing", "ListingPhoto", "Feedback", "Review", "EmergencyAlert", "SearchSubscription", "Tender", "TenderBid", "FleetDrone", "FleetBattery", "Wallet", "Transaction", "PilotCertificate", "Job", "FlightPlan", "EscrowDispute", "Message", "InsurancePolicy"]
+# Горизонт v2 расширения (Фазы 36/42/44/47/48/51)
+from db.models.gorizont_ext import (
+    LeasingApplication,
+    PatentApplication,
+    DroneTracker,
+    DroneportBooking,
+    CourseEnrollment,
+    DatasetListing,
+)
+
+__all__ = [
+    "User", "Category", "Tariff", "Listing", "ListingPhoto",
+    "Feedback", "Review", "EmergencyAlert", "SearchSubscription",
+    "Tender", "TenderBid", "FleetDrone", "FleetBattery",
+    "Wallet", "Transaction", "PilotCertificate", "Job",
+    "FlightPlan", "EscrowDispute", "Message", "InsurancePolicy",
+    # Горизонт v2
+    "LeasingApplication", "PatentApplication", "DroneTracker",
+    "DroneportBooking", "CourseEnrollment", "DatasetListing",
+]

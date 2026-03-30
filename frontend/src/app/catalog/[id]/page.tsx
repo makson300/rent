@@ -5,14 +5,15 @@ export const revalidate = 60;
 
 async function getListing(id: string) {
   try {
-    const res = await fetch(`http://127.0.0.1:8000/api/v1/public/listings/${id}`, {
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+    const res = await fetch(`${baseUrl}/api/v1/public/listings/${id}`, {
       next: { revalidate: 60 }
     });
     if (!res.ok) return null;
     const data = await res.json();
     return data.listing;
-  } catch (err) {
-    console.error("Fetch error:", err);
+  } catch {
+    console.error("Fetch error");
     return null;
   }
 }

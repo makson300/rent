@@ -4,8 +4,7 @@ import { useState, useRef } from "react";
 import { CloudRain, UploadCloud, CheckCircle2, AlertCircle, FileText, Loader2 } from "lucide-react";
 import DroneLoader from "@/components/DroneLoader";
 import { toast } from "react-hot-toast";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
+import { api } from "@/lib/api";
 
 export default function TelemetryUploadPage() {
     const [isDragging, setIsDragging] = useState(false);
@@ -29,34 +28,26 @@ export default function TelemetryUploadPage() {
 
     const handleGenerateOrvd = async () => {
         setIsGenerating(true);
-        const userStr = localStorage.getItem("skyrent_user");
-        let uid = MOCK_USER_ID;
-        if (userStr) {
-            try { uid = JSON.parse(userStr).telegram_id || JSON.parse(userStr).id; } catch {}
-        }
         try {
-            const res = await fetch(`${API_BASE}/api/v1/airspace/plan/generate`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    telegram_id: uid,
+            const data = await api.post<{ ok: boolean; message_format?: string; error?: string }>(
+                "/airspace/plan/generate",
+                {
                     lat: orvdForm.lat,
                     lng: orvdForm.lng,
                     radius: orvdForm.radius,
                     height: orvdForm.height,
                     start_time: new Date(orvdForm.start).toISOString(),
                     end_time: new Date(orvdForm.end).toISOString(),
-                    drone_model: orvdForm.model
-                })
-            });
-            const data = await res.json();
-            if (res.ok && data.ok) {
+                    drone_model: orvdForm.model,
+                }
+            );
+            if (data.ok && data.message_format) {
                 setOrvdResult(data.message_format);
                 toast.success("План успешно сгенерирован и отправлен в Телеграм!");
             } else {
                 toast.error(data.error || "Ошибка генерации");
             }
-        } catch (e) {
+        } catch {
             toast.error("Сетевая ошибка");
         } finally {
             setIsGenerating(false);
@@ -108,9 +99,11 @@ export default function TelemetryUploadPage() {
         formData.append("file", file);
 
         try {
-            const res = await fetch(`${API_BASE}/api/v1/pilots/${MOCK_USER_ID}/telemetry/upload`, {
+            const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "";
+            const res = await fetch(`${baseUrl}/api/v1/pilots/${MOCK_USER_ID}/telemetry/upload`, {
                 method: "POST",
                 body: formData,
+                headers: { "X-Telegram-Id": String(MOCK_USER_ID) },
             });
 
             const data = await res.json();
@@ -121,7 +114,7 @@ export default function TelemetryUploadPage() {
             } else {
                 toast.error(data.error || "Ошибка при обработке лога");
             }
-        } catch (error) {
+        } catch {
             toast.error("Ошибка соединения с сервером Горизонта");
         } finally {
             setLoading(false);
@@ -259,11 +252,8 @@ export default function TelemetryUploadPage() {
                                 // Phase 28 Action
                                 const req = { telegram_id: MOCK_USER_ID, is_emergency_volunteer: true, emergency_region: "Россия / Беларусь" };
                                 try {
-                                    const res = await fetch(`${API_BASE}/api/v1/pilot/volunteer`, {
-                                        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(req)
-                                    });
-                                    if (res.ok) toast.success("Вы добавлены в резерв МЧС! Оперативный штаб свяжется при ЧС.");
-                                    else toast.error("Ошибка активации резерва");
+                                    await api.post("/pilot/volunteer", req);
+                                    toast.success("Вы добавлены в резерв МЧС! Оперативный штаб свяжется при ЧС.");
                                 } catch { toast.error("Ошибка сети"); }
                             }}
                             className="relative z-10 w-full py-3 bg-red-500/20 hover:bg-red-500/40 border border-red-500/50 text-red-200 font-bold rounded-xl transition-all flex justify-center items-center gap-2"

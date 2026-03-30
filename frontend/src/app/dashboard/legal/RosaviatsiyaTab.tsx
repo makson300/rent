@@ -31,18 +31,15 @@ export default function RosaviatsiyaTab() {
           userId = JSON.parse(userStr).id;
         }
 
-        await fetch("http://127.0.0.1:8000/api/v1/lead_registration", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+        const { api } = await import("@/lib/api");
+        await api.post("/lead_registration", {
             user_id: userId,
             drone_brand_model: formData.drone_type,
             serial_number: formData.drone_serial,
-          }),
         });
         setLeadSent(true);
-      } catch (e) {
-        console.error("Lead tracking failed silently", e);
+      } catch {
+        console.error("Lead tracking failed silently");
       }
     }
 

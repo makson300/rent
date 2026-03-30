@@ -25,11 +25,11 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from db.base import Base
-import db.models  # This ensures all models are registered
-from bot.config import DATABASE_URL
+import db.models  # регистрирует все модели для autogenerate
+from core.config import settings
 
-# Set the URL dynamically from our config
-config.set_main_option("sqlalchemy.url", DATABASE_URL)
+# DATABASE_URL из .env через core.config (единый источник для всего проекта)
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
 target_metadata = Base.metadata
 

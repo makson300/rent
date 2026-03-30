@@ -4,7 +4,8 @@ import JobFilters from "./JobFilters";
 export const revalidate = 0; // dynamic depending on searchParams
 
 async function getJobs(searchParams: { [key: string]: string | string[] | undefined }) {
-  const url = new URL("http://127.0.0.1:8000/api/v1/public/jobs");
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+  const url = new URL(`${baseUrl}/api/v1/public/jobs`);
   
   if (searchParams.city) url.searchParams.append("city", searchParams.city as string);
   if (searchParams.q) url.searchParams.append("q", searchParams.q as string);
@@ -26,9 +27,10 @@ async function getJobs(searchParams: { [key: string]: string | string[] | undefi
 export default async function Jobs({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
-  const jobs = await getJobs(searchParams);
+  const params = await searchParams;
+  const jobs = await getJobs(params);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

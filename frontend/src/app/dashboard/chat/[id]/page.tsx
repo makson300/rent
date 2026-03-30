@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Send, Search, MoreVertical, ArrowLeft, BotMessageSquare } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { api } from "@/lib/api";
 
 export default function P2PChat({ params }: { params: { id: string } }) {
     const tenderId = params.id;
@@ -36,16 +37,13 @@ export default function P2PChat({ params }: { params: { id: string } }) {
 
     const fetchHistory = async () => {
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/api/v1/chat/history?tender_id=${tenderId}&user1=${myId}&user2=${partnerId}`);
-            if (res.ok) {
-                const data = await res.json();
-                if (data.ok) {
-                    setMessages(data.messages);
-                    scrollToBottom();
-                }
+            const data = await api.get<{ ok: boolean; messages: any[] }>(`/chat/history?tender_id=${tenderId}&user1=${myId}&user2=${partnerId}`);
+            if (data.ok) {
+                setMessages(data.messages);
+                scrollToBottom();
             }
-        } catch (e) {
-            console.error("Failed to load history", e);
+        } catch {
+            console.error("Failed to load history");
         }
     };
 
@@ -63,17 +61,13 @@ export default function P2PChat({ params }: { params: { id: string } }) {
         scrollToBottom();
 
         try {
-            await fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/api/v1/chat/send`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    tender_id: parseInt(tenderId),
-                    sender_id: myId,
-                    receiver_id: partnerId,
-                    content: tmpMsg.content
-                })
+            await api.post("/chat/send", {
+                tender_id: parseInt(tenderId),
+                sender_id: myId,
+                receiver_id: partnerId,
+                content: tmpMsg.content
             });
-        } catch (e) {
+        } catch {
             toast.error("Ошибка при отправке");
         }
     };

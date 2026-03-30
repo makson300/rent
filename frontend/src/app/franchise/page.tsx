@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { Globe, ArrowRight, ShieldCheck, MapPin, Building2, Phone, Briefcase, Loader2, DollarSign } from "lucide-react";
 import { toast } from "react-hot-toast";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
+import { api } from "@/lib/api";
 
 // Жесткий белый список прямо на фронтенде
 const FRIENDLY_COUNTRIES = [
@@ -28,20 +27,14 @@ export default function FranchisePage() {
         setLoading(true);
 
         try {
-            const res = await fetch(`${API_BASE}/api/v1/franchise/apply`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(form)
-            });
-            const data = await res.json();
-            
-            if (res.ok && data.ok) {
+            const data = await api.post<{ ok: boolean; message?: string; error?: string }>("/franchise/apply", form);
+            if (data.ok) {
                 setSubmitted(true);
                 toast.success(data.message || "Заявка успешно отправлена");
             } else {
                 toast.error(data.error || "Ошибка при отправке заявки");
             }
-        } catch (error) {
+        } catch {
             toast.error("Ошибка сети. Попробуйте позже.");
         } finally {
             setLoading(false);

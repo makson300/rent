@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { ShieldCheck, Wallet as WalletIcon, History, AlertTriangle, ArrowUpRight, ArrowDownRight, CreditCard, Lock, Loader2 } from "lucide-react";
 
 import { toast } from "react-hot-toast";
+import { api } from "@/lib/api";
 
 export default function WalletEscrowPage() {
   const [activeTab, setActiveTab] = useState<"balance" | "escrow" | "insurance">("balance");
@@ -17,16 +18,13 @@ export default function WalletEscrowPage() {
 
   const fetchWalletData = async () => {
     try {
-      const walletRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://45.12.5.177.nip.io'}/api/wallet/${USER_ID}`);
-      const walletData = await walletRes.json();
-      
-      const txRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://45.12.5.177.nip.io'}/api/wallet/${USER_ID}/transactions`);
-      const txData = await txRes.json();
+      const walletData = await api.get<{ ok: boolean; wallet: any }>(`/wallet/${USER_ID}`);
+      const txData = await api.get<{ ok: boolean; transactions: any[] }>(`/wallet/${USER_ID}/transactions`);
 
       if (walletData.ok) setWallet(walletData.wallet);
       if (txData.ok) setTransactions(txData.transactions);
-    } catch (e) {
-      console.error("Failed to load wallet", e);
+    } catch {
+      console.error("Failed to load wallet");
     } finally {
       setIsLoading(false);
     }
@@ -47,12 +45,7 @@ export default function WalletEscrowPage() {
 
     setIsProcessing(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://45.12.5.177.nip.io'}/api/v1/payments/checkout`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ telegram_id: USER_ID, amount })
-      });
-      const data = await res.json();
+      const data = await api.post<{ ok: boolean; confirmation_url?: string; error?: string }>("/payments/checkout", { telegram_id: USER_ID, amount });
       if (data.ok && data.confirmation_url) {
         toast.loading("Перенаправление на ЮKassa...");
         // Перенаправляем на шлюз Яндекса/Сбера
@@ -61,7 +54,7 @@ export default function WalletEscrowPage() {
         toast.error("Ошибка эквайринга: " + data.error);
         setIsProcessing(false);
       }
-    } catch (e) {
+    } catch {
       toast.error("Ошибка соединения с кассой.");
       setIsProcessing(false);
     }
@@ -344,19 +337,14 @@ export default function WalletEscrowPage() {
                   
                   setIsProcessing(true);
                   try {
-                    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://45.12.5.177.nip.io'}/api/v1/insurance/buy`, {
-                        method: "POST",
-                        headers: {"Content-Type": "application/json"},
-                        body: JSON.stringify({ telegram_id: USER_ID, drone_model: m, serial_number: s, coverage_amount: v })
-                    });
-                    const d = await res.json();
+                    const d = await api.post<{ ok: boolean; error?: string }>("/insurance/buy", { telegram_id: USER_ID, drone_model: m, serial_number: s, coverage_amount: v });
                     if(d.ok) {
                         toast.success("Полис успешно оформлен!");
                         fetchWalletData(); 
                     } else {
                         toast.error(d.error || "Ошибка оплаты");
                     }
-                  } catch(e) {
+                  } catch {
                       toast.error("Сетевая ошибка");
                   } finally {
                       setIsProcessing(false);

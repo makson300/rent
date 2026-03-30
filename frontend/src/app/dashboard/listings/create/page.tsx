@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react";
 import { PlusCircle, Search, ShieldCheck, Camera, CheckCircle2, ArrowRight, Loader2, Building2 } from "lucide-react";
 import { toast } from "react-hot-toast";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
+import { api } from "@/lib/api";
 
 export default function CreateListingWeb() {
   const [userId, setUserId] = useState<number | null>(null);
@@ -46,16 +45,15 @@ export default function CreateListingWeb() {
     
     setDadataLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/dadata/company?inn=${inn}`);
-      const data = await res.json();
-      if (res.ok && data.ok) {
+      const data = await api.get<{ ok: boolean; company_name?: string; director?: string; address?: string; error?: string }>(`/dadata/company?inn=${inn}`);
+      if (data.ok) {
         setCompanyData(data);
         toast.success("Компания успешно верифицирована");
       } else {
         toast.error(data.error || "Компания не найдена");
         setCompanyData(null);
       }
-    } catch (e) {
+    } catch {
       toast.error("Ошибка при связи с DaData");
       setCompanyData(null);
     } finally {
@@ -78,27 +76,20 @@ export default function CreateListingWeb() {
         listing_type: "rental",
       };
 
-      const res = await fetch(`${API_BASE}/api/v1/listings/web`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const json = await res.json();
-      if (res.ok && json.ok) {
+      const json = await api.post<{ ok: boolean; status?: string; ai_reason?: string; error?: string }>("/listings/web", payload);
+      if (json.ok) {
         if (json.status === "active") {
           toast.success("Объявление прошло ИИ-Модерацию и мгновенно опубликовано!");
         } else {
           toast.success("Объявление создано и отправлено на ручную модерацию. ИИ Вердикт: " + json.ai_reason);
         }
-        // Очистить форму
         setFormData({
             category_id: 1, city: "", title: "", description: "", price_list: "", contacts: ""
         });
       } else {
         toast.error(json.error || "Ошибка публикации");
       }
-    } catch (error) {
+    } catch {
       toast.error("Не удалось связаться с сервером");
     } finally {
       setLoading(false);

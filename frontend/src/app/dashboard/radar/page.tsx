@@ -3,8 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Loader2, Navigation, Target, Filter } from "lucide-react";
 import { toast } from "react-hot-toast";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
+import { api } from "@/lib/api";
 
 interface TenderMarker {
     id: number;
@@ -60,26 +59,23 @@ export default function RadarPage() {
 
     const fetchTenders = async () => {
         try {
-            let tgId = 0;
-            if (typeof window !== "undefined" && (window as any).Telegram?.WebApp?.initDataUnsafe?.user?.id) {
-                tgId = (window as any).Telegram.WebApp.initDataUnsafe.user.id;
-            }
+            const data = await api.get<{
+                ok: boolean;
+                map_tenders: TenderMarker[];
+                error?: string;
+            }>("/tenders/map");
 
-            const res = await fetch(`${API_BASE}/api/v1/tenders/map?telegram_id=${tgId}`);
-            const data = await res.json();
-            
             if (data.ok) {
                 setTenders(data.map_tenders);
                 initMap(data.map_tenders);
             } else if (data.error === "b2b_locked") {
                 setIsLocked(true);
-                // Показываем демо маркеры на размытом фоне
-                initMap(data.map_tenders || [
-                    {"id": 9991, "title": "Аэрофотосъемка нефтепровода 'Восток'", "budget": 1250000, "category": "Мониторинг", "region": "ХМАО", "lat": 61.0, "lng": 69.0},
-                    {"id": 9992, "title": "Опрыскивание полей 500 Га", "budget": 950000, "category": "Агро", "region": "Краснодарский край", "lat": 45.03, "lng": 38.97}
+                initMap(data.map_tenders ?? [
+                    { id: 9991, title: "Аэрофотосъемка нефтепровода 'Восток'", budget: 1250000, category: "Мониторинг", region: "ХМАО", lat: 61.0, lng: 69.0 },
+                    { id: 9992, title: "Опрыскивание полей 500 Га", budget: 950000, category: "Агро", region: "Краснодарский край", lat: 45.03, lng: 38.97 },
                 ]);
             }
-        } catch (e) {
+        } catch {
             toast.error("Не удалось загрузить данные радара");
         } finally {
             setLoading(false);

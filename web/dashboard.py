@@ -43,6 +43,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# --- Горизонт v2 API роутеры ---
+try:
+    from web.api.v1.gorizont import gorizont_router
+    app.include_router(gorizont_router, prefix="/api/v1")
+    logging.getLogger(__name__).info("Горизонт v2 API подключён (/api/v1)")
+except ImportError as e:
+    logging.getLogger(__name__).warning("Горизонт v2 API не загружен: %s", e)
+
 # Setup templates
 BASE_DIR = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))

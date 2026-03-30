@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react";
 import { Copy, Navigation, CheckCircle2, Save, MapPin, Clock, RefreshCw } from "lucide-react";
 import { toast } from "react-hot-toast";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
+import { api } from "@/lib/api";
 
 const STATUS_LABELS: Record<string, { text: string; color: string }> = {
   pending:  { text: "⏳ Обработка",  color: "text-yellow-400" },
@@ -72,8 +71,8 @@ export default function OrvdTab() {
     if (!userId) return;
     setLoadingPlans(true);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/my_flight_plans/${userId}`);
-      if (res.ok) setMyPlans(await res.json());
+      const data = await api.get<FlightPlan[]>(`/my_flight_plans/${userId}`);
+      setMyPlans(data);
     } catch {
       // Silent fail — user may be offline
     } finally {
@@ -120,36 +119,27 @@ export default function OrvdTab() {
 
     setIsSubmitting(true);
     try {
-      const res = await fetch(`${API_BASE}/api/v1/flight_plans`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: userId,
-          coords: formData.coords,
-          radius: formData.radius,
-          alt_min: formData.altMin,
-          alt_max: formData.altMax,
-          time_start: formData.timeStart,
-          time_end: formData.timeEnd,
-          task_desc: formData.task,
-          operator_name: formData.operatorName,
-          phone: formData.phone,
-          shr_code,
-          is_emergency: false,
-          lat: latLng?.lat ?? null,
-          lng: latLng?.lng ?? null,
-        }),
+      await api.post("/flight_plans", {
+        user_id: userId,
+        coords: formData.coords,
+        radius: formData.radius,
+        alt_min: formData.altMin,
+        alt_max: formData.altMax,
+        time_start: formData.timeStart,
+        time_end: formData.timeEnd,
+        task_desc: formData.task,
+        operator_name: formData.operatorName,
+        phone: formData.phone,
+        shr_code,
+        is_emergency: false,
+        lat: latLng?.lat ?? null,
+        lng: latLng?.lng ?? null,
       });
-
-      if (res.ok) {
-        toast.success("✅ Заявка отправлена на проверку! Ожидайте подтверждения.");
-        await fetchMyPlans();
-      } else {
-        const err = await res.json();
-        toast.error(`Ошибка: ${err.error || "Не удалось сохранить"}`);
-      }
-    } catch (e) {
-      toast.error("Сервер недоступен. Проверьте подключение.");
+      toast.success("✅ Заявка отправлена на проверку! Ожидайте подтверждения.");
+      await fetchMyPlans();
+    } catch (err: unknown) {
+      const e = err as { detail?: string };
+      toast.error(e.detail ?? "Сервер недоступен. Проверьте подключение.");
     } finally {
       setIsSubmitting(false);
     }

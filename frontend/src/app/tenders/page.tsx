@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Briefcase, MapPin, Clock, ShieldCheck, FileText, CheckCircle2, ChevronRight, X, ShoppingCart, Zap } from "lucide-react";
 import Link from "next/link";
+import { api } from "@/lib/api";
 
 export default function TendersPage() {
   const [tenders, setTenders] = useState<any[]>([]);
@@ -15,13 +16,10 @@ export default function TendersPage() {
 
   const fetchTenders = async () => {
     try {
-      // Use proxy endpoint if NEXT_PUBLIC_API_URL is missing, defaulting to local 8000 for safety
-      const apiHost = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-      const res = await fetch(`${apiHost}/api/v1/tenders`);
-      const data = await res.json();
+      const data = await api.get<any[]>("/tenders");
       if (Array.isArray(data)) setTenders(data);
-    } catch (e) {
-      console.error("Error fetching tenders:", e);
+    } catch {
+      console.error("Error fetching tenders");
     } finally {
       setLoading(false);
     }
@@ -33,15 +31,13 @@ export default function TendersPage() {
 
   const handleOpenTender = async (tenderId: number) => {
     try {
-      const apiHost = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-      const res = await fetch(`${apiHost}/api/v1/tenders/${tenderId}`);
-      const data = await res.json();
+      const data = await api.get<any>(`/tenders/${tenderId}`);
       if (data.id) {
         setSelectedTender(data);
         setBidFormOpen(false);
       }
-    } catch (e) {
-      console.error(e);
+    } catch {
+      console.error("Error opening tender");
     }
   };
 
@@ -50,26 +46,20 @@ export default function TendersPage() {
     if (!selectedTender) return;
     setSubmitting(true);
     try {
-      const apiHost = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
       const payload = {
-        contractor_id: 1, // temporary mock ID
+        contractor_id: 1,
         price_offer: parseInt(priceOffer.replace(/\D/g, "")),
         comment: comment
       };
-      const res = await fetch(`${apiHost}/api/v1/tenders/${selectedTender.id}/bid`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      const data = await res.json();
+      const data = await api.post<{ ok: boolean }>(`/tenders/${selectedTender.id}/bid`, payload);
       if (data.ok) {
         setBidFormOpen(false);
         setPriceOffer("");
         setComment("");
-        await handleOpenTender(selectedTender.id); // Reload
+        await handleOpenTender(selectedTender.id);
       }
-    } catch (e) {
-      console.error(e);
+    } catch {
+      console.error("Error submitting bid");
     } finally {
       setSubmitting(false);
     }
