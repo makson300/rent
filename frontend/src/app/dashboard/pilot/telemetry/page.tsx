@@ -246,7 +246,32 @@ export default function TelemetryUploadPage() {
                         )}
                     </div>
 
-                    <div className="bg-blue-500/5 border border-blue-500/20 rounded-3xl p-6 flex flex-col gap-3">
+                    {/* Phase 28: Отряд Резерва МЧС */}
+                    <div className="bg-red-500/10 border border-red-500/30 rounded-3xl p-6 relative overflow-hidden flex flex-col gap-4">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 rounded-full blur-3xl pointer-events-none" />
+                        <h3 className="text-lg font-bold text-red-400 relative z-10 flex items-center gap-2">
+                             МЧС / Отряд Резерва
+                        </h3>
+                        <p className="text-xs text-gray-300 relative z-10">
+                            Активируйте, если готовы выехать со своим БПЛА на поисково-спасательные операции (ПСО) или ликвидацию ЧС в Вашем регионе.
+                        </p>
+                        <button 
+                            onClick={async () => {
+                                // Phase 28 Action
+                                const req = { telegram_id: MOCK_USER_ID, is_emergency_volunteer: true, emergency_region: "Россия / Беларусь" };
+                                try {
+                                    const res = await fetch(`${API_BASE}/api/v1/pilot/volunteer`, {
+                                        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(req)
+                                    });
+                                    if (res.ok) toast.success("Вы добавлены в резерв МЧС! Оперативный штаб свяжется при ЧС.");
+                                    else toast.error("Ошибка активации резерва");
+                                } catch { toast.error("Ошибка сети"); }
+                            }}
+                            className="relative z-10 w-full py-3 bg-red-500/20 hover:bg-red-500/40 border border-red-500/50 text-red-200 font-bold rounded-xl transition-all flex justify-center items-center gap-2"
+                        >
+                            Вступить в Отряд Спасения
+                        </button>
+                    </div>                    <div className="bg-blue-500/5 border border-blue-500/20 rounded-3xl p-6 flex flex-col gap-3">
                         <div className="flex items-start gap-3">
                             <AlertCircle className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
                             <div className="text-sm">

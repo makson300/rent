@@ -28,6 +28,10 @@ class User(Base):
     volunteer_rescues: Mapped[int] = mapped_column(default=0)
     verified_flight_hours: Mapped[float] = mapped_column(Float, default=0.0)
     
+    # Phase 28: Emergency Volunteer
+    is_emergency_volunteer: Mapped[bool] = mapped_column(Boolean, default=False)
+    emergency_region: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    
     # B2B DaData Verification
     inn: Mapped[str | None] = mapped_column(String(20), nullable=True)
     company_name: Mapped[str | None] = mapped_column(String(255), nullable=True)

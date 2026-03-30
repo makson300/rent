@@ -163,11 +163,20 @@ export default function RadarPage() {
         <div className="flex flex-col h-[calc(100vh-80px)] relative overflow-hidden bg-black/50">
             {/* Header / Panel overlay */}
             <div className={`absolute top-4 left-4 right-4 z-[400] flex justify-between items-start pointer-events-none transition-all duration-500 ${isLocked ? 'blur-md opacity-30 select-none' : ''}`}>
-                <div className="bg-[#121214]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-2xl pointer-events-auto max-w-xs">
+                <div className="bg-[#121214]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-2xl pointer-events-auto max-w-xs w-full">
                     <h1 className="text-xl font-black text-white flex items-center gap-2 mb-1">
                         <Target className="w-5 h-5 text-khokhloma-gold" /> Радар B2G
                     </h1>
                     <p className="text-xs text-gray-400 mb-4">Найдено {tenders.length} активных тендеров поблизости.</p>
+
+                    <div className="flex bg-[#0A0A0B] border border-white/10 rounded-xl p-1 mb-4">
+                        <button className="flex-1 py-1.5 text-xs font-bold rounded-lg bg-khokhloma-gold/20 text-khokhloma-gold border border-khokhloma-gold/30">
+                            Россия (Тендеры)
+                        </button>
+                        <button className="flex-1 py-1.5 text-xs font-bold rounded-lg text-gray-400 hover:text-white transition-colors" onClick={() => toast("Интеграция с Госуслугами РБ в процессе", {icon: "🇧🇾"})}>
+                            Беларусь (РБ)
+                        </button>
+                    </div>
                     
                     <button 
                         onClick={handleLocateMe}

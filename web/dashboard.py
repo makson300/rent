@@ -2592,6 +2592,46 @@ async def calculate_logistics_route(data: DroneRouteRequest):
         logger.error(f"AI Route Error: {e}")
         return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
 
+# --- Phase 28: Volunteer Emergency Response (MChS) & Belarus ---
+class VolunteerRequest(BaseModel):
+    telegram_id: int
+    is_emergency_volunteer: bool
+    emergency_region: str | None = None
+
+@app.post("/api/v1/pilot/volunteer")
+async def toggle_volunteer_status(data: VolunteerRequest, db: Session = Depends(get_db)):
+    """Включение режима волонтера ЧС/МЧС для пилотов"""
+    try:
+        from db.models.user import User
+        user = db.query(User).filter(User.telegram_id == data.telegram_id).first()
+        if not user:
+            return JSONResponse(status_code=404, content={"ok": False, "error": "Пилот не найден"})
+            
+        user.is_emergency_volunteer = data.is_emergency_volunteer
+        user.emergency_region = data.emergency_region
+        db.commit()
+        
+        # Если включили - уведомляем Центр (Админа)
+        if data.is_emergency_volunteer:
+             from core.config import settings
+             region_str = data.emergency_region or "Без ограничений"
+             admin_txt = (
+                 f"🚨 <b>Новый Резерв ЧС (Волонтер)</b>\n\n"
+                 f"Пилот <code>{user.telegram_id}</code> выразил готовность участвовать "
+                 f"в поисково-спасательных миссиях (ПСО/МЧС).\n"
+                 f"📍 Регион патрулирования: <b>{region_str}</b>\n\n"
+                 f"<i>Система 'Единое Окно' взяла пилота на контроль.</i>"
+             )
+             try:
+                 await app.state.bot.send_message(settings.ADMIN_ID, admin_txt, parse_mode="HTML")
+             except: pass
+             
+        return JSONResponse(content={"ok": True, "message": "Статус волонтера успешно обновлен!"})
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Volunteer Toggle Error: {e}")
+        return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
+
 if __name__ == "__main__":
     # Use the filename "dashboard" for uvicorn string reference
     uvicorn.run("dashboard:app", host="0.0.0.0", port=8000, reload=True)
