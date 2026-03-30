@@ -22,6 +22,7 @@ from db.models.education import EducationApplication
 from db.models.emergency import EmergencyAlert
 from db.models.flight_plan import FlightPlan
 from db.models.job import Job
+from core.notifications import notify_user, notify_admin
 
 # Configure logging
 logging.basicConfig(
@@ -1447,10 +1448,10 @@ async def place_tender_bid(bid: TenderBidCreate, session: AsyncSession = Depends
             session.add(new_bid)
             await session.commit()
             
-            # Уведомляем пилота
+            # Уведомляем пилота (Multichannel)
             try:
                 alert = f"⚠️ <b>Ваш отклик на тендер #{tender.id} заблокирован!</b>\n\n🤖 <b>Вердикт AI:</b> {ai_reason}"
-                await app.state.bot.send_message(bid.contractor_id, alert, parse_mode="HTML")
+                await notify_user(app.state.bot, bid.contractor_id, alert)
             except: pass
             
             return JSONResponse(content={"ok": False, "error": "Ваш отклик отклонен AI-Модератором по причине демпинга цены.", "ai_reason": ai_reason})
@@ -2534,7 +2535,7 @@ async def apply_franchise(data: FranchiseRequest):
             f"🔥 Регион подходит для развертывания Экосистемы на базе MCP-серверов."
         )
         try:
-            await app.state.bot.send_message(settings.ADMIN_ID, admin_text, parse_mode="HTML")
+            await notify_admin(app.state.bot, admin_text)
         except: pass
             
         return JSONResponse(content={"ok": True, "message": "Заявка успешно принята! Ожидайте звонка от директора по развитию Горизонт Хаб."})
@@ -2611,7 +2612,7 @@ async def toggle_volunteer_status(data: VolunteerRequest, db: Session = Depends(
         user.emergency_region = data.emergency_region
         db.commit()
         
-        # Если включили - уведомляем Центр (Админа)
+        # Если включили - уведомляем Центр (Админа) (Multichannel)
         if data.is_emergency_volunteer:
              from core.config import settings
              region_str = data.emergency_region or "Без ограничений"
@@ -2623,7 +2624,7 @@ async def toggle_volunteer_status(data: VolunteerRequest, db: Session = Depends(
                  f"<i>Система 'Единое Окно' взяла пилота на контроль.</i>"
              )
              try:
-                 await app.state.bot.send_message(settings.ADMIN_ID, admin_txt, parse_mode="HTML")
+                 await notify_admin(app.state.bot, admin_txt, channels=["tg", "max"])
              except: pass
              
         return JSONResponse(content={"ok": True, "message": "Статус волонтера успешно обновлен!"})
