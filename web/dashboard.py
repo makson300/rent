@@ -2490,6 +2490,108 @@ async def generate_airspace_plan(data: AirspacePlanRequest, session: AsyncSessio
         logger.error(f"Airspace Plan Error: {e}")
         return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
 
+# --- Phase 27: Franchise (White-list) & AI Logistics Router ---
+
+FRIENDLY_COUNTRIES = {
+    "Россия", "Russia", "Беларусь", "Belarus", "Казахстан", "Kazakhstan", 
+    "Китай", "China", "ОАЭ", "UAE", "Сербия", "Serbia", "Индия", "India", 
+    "Бразилия", "Brazil", "ЮАР", "South Africa", "Иран", "Iran", "Куба", "Cuba"
+}
+
+class FranchiseRequest(BaseModel):
+    fullname: str
+    country: str
+    city: str
+    contact: str
+    investment_budget: str
+
+@app.post("/api/v1/franchise/apply")
+async def apply_franchise(data: FranchiseRequest):
+    """Прием заявок на мастер-франшизу 'Горизонт' (с жестким фильтром стран)"""
+    try:
+        # Проверка страны (White-list Политика)
+        country_clean = data.country.strip()
+        is_friendly = any(c.lower() == country_clean.lower() for c in FRIENDLY_COUNTRIES)
+        
+        if not is_friendly:
+            return JSONResponse(
+                status_code=403, 
+                content={
+                    "ok": False, 
+                    "error": "К сожалению, мы временно не осуществляем экспорт технологий и выдачу франшизы в Вашем регионе. Платформа доступна только для дружественных стран и стран БРИКС."
+                }
+            )
+            
+        # Отправляем заявку в ТГ админу
+        from core.config import settings
+        admin_text = (
+            f"🌍 <b>Новая заявка на Франшизу (Экспорт)</b>\n\n"
+            f"👤 Имя: {data.fullname}\n"
+            f"📍 Страна: <b>{data.country}</b> (Одобрено White-List)\n"
+            f"🏙️ Город: {data.city}\n"
+            f"📞 Контакт: <code>{data.contact}</code>\n"
+            f"💰 Бюджет: {data.investment_budget}\n\n"
+            f"🔥 Регион подходит для развертывания Экосистемы на базе MCP-серверов."
+        )
+        try:
+            await app.state.bot.send_message(settings.ADMIN_ID, admin_text, parse_mode="HTML")
+        except: pass
+            
+        return JSONResponse(content={"ok": True, "message": "Заявка успешно принята! Ожидайте звонка от директора по развитию Горизонт Хаб."})
+    except Exception as e:
+        logger.error(f"Franchise Error: {e}")
+        return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
+
+class DroneRouteRequest(BaseModel):
+    drone_name: str
+    battery_mah: int
+    payload_kg: float
+    distance_km: float
+    wind_ms: float
+
+@app.post("/api/v1/ai/route-calculator")
+async def calculate_logistics_route(data: DroneRouteRequest):
+    """
+    ИИ-Оценка логистики. Хватит ли дрону батареи довезти груз?
+    """
+    try:
+        import google.generativeai as genai
+        from core.config import settings
+        
+        if not settings.GEMINI_API_KEY:
+             return {"ok": False, "error": "AI not configured"}
+             
+        genai.configure(api_key=settings.GEMINI_API_KEY)
+        model = genai.GenerativeModel("gemini-2.5-flash")
+        
+        prompt = (
+            f"Ты — Строгий Авиационный Инженер-Логист системы 'Горизонт'.\n"
+            f"Твоя задача: оценить, справится ли дрон с полетной задачей.\n\n"
+            f"ДАННЫЕ:\n"
+            f"- Модель: {data.drone_name}\n"
+            f"- Батарея: {data.battery_mah} mAh\n"
+            f"- Вес груза: {data.payload_kg} кг\n"
+            f"- Дистанция: {data.distance_km} км\n"
+            f"- Скорость ветра: {data.wind_ms} м/с\n\n"
+            f"ПРАВИЛА ОЦЕНКИ:\n"
+            f"1. Обычно 5000 mAh хватает на полет пустого дрона на 10 км без ветра.\n"
+            f"2. Каждые 1 кг груза съедают 15% запаса.\n"
+            f"3. Ветер свыше 7 м/с съедает еще 20% запаса.\n"
+            f"4. Ветер > 12 м/с - летать запрещено (FAIL).\n\n"
+            f"Ответь в формате JSON строго по структуре:\n"
+            f'{{"is_possible": true/false, "estimated_battery_left_percent": number, "explanation": "Краткое инженерное объяснение на русском языке (до 2 предложений)"}}'
+        )
+        
+        response = await model.generate_content_async(prompt)
+        text = response.text.strip().removeprefix('```json').removesuffix('```').strip()
+        import json
+        result = json.loads(text)
+        return JSONResponse(content={"ok": True, "result": result})
+        
+    except Exception as e:
+        logger.error(f"AI Route Error: {e}")
+        return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
+
 if __name__ == "__main__":
     # Use the filename "dashboard" for uvicorn string reference
     uvicorn.run("dashboard:app", host="0.0.0.0", port=8000, reload=True)

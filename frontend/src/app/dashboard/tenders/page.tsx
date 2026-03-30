@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Briefcase, Building2, MapPin, Calendar, Banknote, ShieldCheck, FileCheck, ArrowRight, Loader2 } from "lucide-react";
+import { Briefcase, Building2, MapPin, Calendar, Banknote, ShieldCheck, FileCheck, ArrowRight, Loader2, Cpu } from "lucide-react";
 import { toast } from "react-hot-toast";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
@@ -97,6 +97,40 @@ export default function TendersPage() {
     } finally {
       setBiddingId(null);
     }
+  };
+
+  const [aiLoading, setAiLoading] = useState<number | null>(null);
+  
+  const handleAiRoute = async (tender: Tender) => {
+      setAiLoading(tender.id);
+      try {
+          const res = await fetch(`${API_BASE}/api/v1/ai/route-calculator`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                  drone_name: "DJI Mavic 3 Enterprise",
+                  battery_mah: 5000,
+                  payload_kg: 2.5,
+                  distance_km: (tender.budget / 100000) * 10, // Mock heuristic distance based on budget
+                  wind_ms: 5.5
+              })
+          });
+          const data = await res.json();
+          if (res.ok && data.ok) {
+              const resObj = data.result;
+              if (resObj.is_possible) {
+                  toast.success(`🤖 ИИ Решение: Возможен вылет.\nОбъяснение: ${resObj.explanation}\nОстаток батареи: ${resObj.estimated_battery_left_percent}%`, { duration: 6000 });
+              } else {
+                  toast.error(`🧨 ИИ Поломка: Недостаточно энергии.\nПричина: ${resObj.explanation}`, { duration: 6000 });
+              }
+          } else {
+              toast.error("Ошибка ИИ-сервиса маршрутизации");
+          }
+      } catch (e) {
+          toast.error("Не удалось подключиться к ИИ");
+      } finally {
+          setAiLoading(null);
+      }
   };
 
   return (
@@ -213,17 +247,32 @@ export default function TendersPage() {
                          </div>
                      </div>
 
-                     <button
-                        onClick={() => handleBid(tender)}
-                        disabled={biddingId === tender.id}
-                        className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50 flex items-center justify-center gap-2 group-hover:scale-[1.02]"
-                     >
-                         {biddingId === tender.id ? (
-                             <><Loader2 className="w-5 h-5 animate-spin"/> Обработка AI...</>
-                         ) : (
-                             <>Откликнуться <ArrowRight className="w-5 h-5" /></>
-                         )}
-                     </button>
+                     <div className="flex flex-col gap-2">
+                         <button
+                            onClick={() => handleAiRoute(tender)}
+                            disabled={aiLoading === tender.id || biddingId === tender.id}
+                            className="w-full py-3.5 bg-[#1A1A1D] hover:bg-[#252529] border border-white/5 text-khokhloma-gold font-bold rounded-xl transition-all shadow-lg shadow-black/20 disabled:opacity-50 flex items-center justify-center gap-2"
+                         >
+                             {aiLoading === tender.id ? (
+                                 <><Loader2 className="w-5 h-5 animate-spin"/> Анализ...</>
+                             ) : (
+                                 <><Cpu className="w-5 h-5" /> Справится ли мой дрон?</>
+                             )}
+                         </button>
+
+                         <button
+                            onClick={() => handleBid(tender)}
+                            disabled={biddingId === tender.id}
+                            className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50 flex items-center justify-center gap-2 group-hover:scale-[1.02]"
+                         >
+                             {biddingId === tender.id ? (
+                                 <><Loader2 className="w-5 h-5 animate-spin"/> Обработка AI...</>
+                             ) : (
+                                 <>Откликнуться <ArrowRight className="w-5 h-5" /></>
+                             )}
+                         </button>
+                     </div>
+
                      <p className="text-center text-[10px] text-gray-500 mt-3 flex items-center justify-center gap-1">
                          <Banknote className="w-3 h-3" /> Средства холдируются Гарантом
                      </p>
