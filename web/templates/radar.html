@@ -55,13 +55,13 @@
         <h2 style="color: #fbbf24; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">💼 B2G Тендеры (Самозанятые) <span style="font-size: 14px; background: rgba(251,191,36,0.1); padding: 4px 8px; border-radius: 8px;">ЕИС: Малые</span></h2>
         
         {% for tender in b2g_tenders %}
-        <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); padding: 15px; border-radius: 12px; margin-bottom: 15px;">
+        <div style="background: rgba(0,0,0,0.3); border: 1px solid {% if tender.get('is_vip') %}#fbbf24; box-shadow: 0 0 15px rgba(251, 191, 36, 0.3){% else %}var(--glass-border){% endif %}; padding: 15px; border-radius: 12px; margin-bottom: 15px; transition: all 0.3s ease;">
             <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
                 <span style="color: #94a3b8; font-size: 12px;">№ {{ tender.id }}</span>
-                <span style="color: #a855f7; font-size: 12px;">{{ tender.region }}</span>
+                <span style="color: #a855f7; font-size: 12px;">{% if tender.get('is_vip') %}<span style="color: #fbbf24; background: rgba(251,191,36,0.1); padding: 2px 6px; border-radius: 4px; margin-right: 5px;">💎 VIP</span>{% endif %}{{ tender.region }}</span>
             </div>
             <h3 style="margin-bottom: 10px; font-size: 16px;">{{ tender.title }}</h3>
-            <p style="font-size: 18px; font-weight: bold; color: #4ade80; margin-bottom: 15px;">Бюджет: {{ "{:,.0f}".format(tender.price).replace(',', ' ') }} ₽</p>
+            <p style="font-size: 18px; font-weight: bold; color: {% if tender.get('is_vip') %}#fbbf24{% else %}#4ade80{% endif %}; margin-bottom: 15px;">Бюджет: {{ "{:,.0f}".format(tender.price).replace(',', ' ') }} ₽</p>
             
             <div style="display: flex; gap: 10px;">
                 <a href="{{ tender.link }}" target="_blank" class="glass-btn" style="flex: 1; text-align: center; padding: 8px; font-size: 14px;">ЕИС Ссылка</a>

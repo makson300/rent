@@ -1,72 +1,31 @@
 version: '3.8'
 
 services:
-  db:
-    image: postgres:15-alpine
-    restart: always
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-botuser}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secure_db_password}
-      POSTGRES_DB: ${POSTGRES_DB:-rentbot}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-botuser}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  redis:
-    image: redis:7-alpine
-    restart: always
-    command: redis-server --requirepass ${REDIS_PASSWORD:-secure_redis_pass}
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-secure_redis_pass}", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  bot:
+  gorizont_bot:
     build: .
+    container_name: gorizont_bot
     restart: always
     env_file:
       - .env
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-botuser}:${POSTGRES_PASSWORD:-secure_db_password}@db:5432/${POSTGRES_DB:-rentbot}
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-secure_redis_pass}@redis:6379/0
-    depends_on:
-      - db
-      - redis
     ports:
-      - "127.0.0.1:8000:8000"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 15s
+      - "8000:8000"
+    volumes:
+      - ./gorizont.db:/app/gorizont.db # Сохраняем базу SQLite
+      - ./app_data:/app/app_data       # Сохраняем медиа/вложения
+      - ./logs:/app/logs               # Логи
+    # По желанию: Если добавите Redis:
+    # depends_on:
+    #   - redis
 
+  # Если в будущем перейдете на Redis для FSM (раскомментировать)
+  # redis:
+  #   image: redis:alpine
+  #   container_name: gorizont_redis
+  #   restart: always
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis_data:/data
 
-  frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
-      args:
-        NEXT_PUBLIC_API_URL: https://45.12.5.177.nip.io
-    restart: always
-    ports:
-      - "3000:3000"
-    depends_on:
-      - bot
-    healthcheck:
-      test: ["CMD", "node", "-e", "const h=require('http');h.get('http://localhost:3000/api/health',r=>{process.exitCode=r.statusCode>=500?1:0}).on('error',()=>{process.exitCode=0})"]
-      interval: 60s
-      timeout: 10s
-      retries: 3
-      start_period: 90s
-
-volumes:
-  postgres_data:
-  redis_data:
+# volumes:
+#   redis_data:

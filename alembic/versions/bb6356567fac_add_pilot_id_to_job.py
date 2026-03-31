@@ -19,9 +19,12 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    with op.batch_alter_table('jobs', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('pilot_id', sa.BigInteger(), nullable=True))
-        batch_op.create_foreign_key('fk_jobs_pilot_id_users', 'users', ['pilot_id'], ['telegram_id'])
+    try:
+        with op.batch_alter_table('jobs', schema=None) as batch_op:
+            batch_op.add_column(sa.Column('pilot_id', sa.BigInteger(), nullable=True))
+            batch_op.create_foreign_key('fk_jobs_pilot_id_users', 'users', ['pilot_id'], ['telegram_id'])
+    except Exception:
+        pass
 
 def downgrade() -> None:
     with op.batch_alter_table('jobs', schema=None) as batch_op:

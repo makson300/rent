@@ -57,8 +57,11 @@ async def main():
         
     dp = Dispatcher(storage=storage)
 
+    from bot.handlers.inline import router as inline_router
+
     # Подключение роутеров
     logger.info("Registering routers...")
+    dp.include_router(inline_router)
     dp.include_router(company_profile_router)
     dp.include_router(admin_router) # Админский роутер первым!
     dp.include_router(start_router)

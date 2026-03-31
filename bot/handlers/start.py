@@ -11,6 +11,20 @@ router = Router()
 logger = logging.getLogger(__name__)
 
 
+@router.message(F.text.lower().in_(["/cancel", "отмена"]))
+async def cmd_cancel(message: types.Message, state: FSMContext):
+    """Сброс всех активных состояний"""
+    current_state = await state.get_state()
+    if current_state is None:
+        await message.answer("Нет активных действий для отмены.", reply_markup=get_main_menu())
+        return
+        
+    await state.clear()
+    await message.answer(
+        "Действие отменено.",
+        reply_markup=get_main_menu()
+    )
+
 @router.message(CommandStart())
 async def cmd_start(message: types.Message, state: FSMContext):
     """Обработка /start — приветствие + проверка регистрации"""

@@ -1,32 +1,41 @@
-FROM python:3.11-slim
+# Используем официальный образ Python 3.12 (облегченная версия)
+FROM python:3.12-slim
 
+# Настройка переменных окружения
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
+# Рабочая директория
 WORKDIR /app
 
-# Install curl for Docker healthcheck
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+# Устанавливаем системные зависимости (например, для компиляции некоторых Python пакетов и работы с БД)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    gcc \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Upgrade pip and install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
+# Копируем зависимости
+COPY requirements.txt /app/
 
-# Copy source code
-COPY . .
+# Устанавливаем Python зависимости
+RUN pip install --upgrade pip
+RUN pip install -r requirements.txt
 
-# Copy entrypoint and make it executable
-COPY docker-entrypoint.sh .
-RUN chmod +x docker-entrypoint.sh
+# Копируем исходный код проекта
+COPY . /app/
 
-# Create a non-root user and switch to it for security
-RUN umask 0002 && \
-    useradd -m botuser && \
-    chown -R botuser:botuser /app
-
-USER botuser
-
-# Expose web port
+# Открываем порт для FastAPI дашборда
 EXPOSE 8000
 
-# Run the application via entrypoint
-ENTRYPOINT ["./docker-entrypoint.sh"]
-CMD ["python", "main.py"]
+# Создаем скрипт запуска
+RUN echo '#!/bin/bash\n\
+echo "Применение миграций Alembic..."\n\
+python -m alembic upgrade head\n\
+echo "Запуск бота и дашборда..."\n\
+python main.py\n\
+' > /app/start.sh && chmod +x /app/start.sh
+
+# Запускаем приложение
+CMD ["/app/start.sh"]
