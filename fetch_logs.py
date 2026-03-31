@@ -1,11 +1,19 @@
 import paramiko
 
-ssh = paramiko.SSHClient()
-ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-ssh.connect('45.12.5.177', username='root', password='Makson30_', timeout=15)
+HOST = "45.12.5.177"
+USER = "root"
+PASSWORD = "Makson30_"
 
-cmd = "cd /root/rentbot && docker compose logs bot --tail=20"
-stdin, stdout, stderr = ssh.exec_command(cmd)
-with open("docker_logs.txt", "w", encoding="utf-8") as f:
-    f.write(stdout.read().decode('utf-8', errors="replace"))
-ssh.close()
+def main():
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    ssh.connect(HOST, username=USER, password=PASSWORD)
+    
+    print("Fetching last 100 lines of bot logs...")
+    _, out, err = ssh.exec_command("docker logs --tail 200 rentbot-bot-1")
+    o = out.read().decode(errors="replace")
+    print(o)
+    ssh.close()
+
+if __name__ == "__main__":
+    main()

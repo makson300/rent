@@ -16,3 +16,5 @@ google-genai
 matplotlib
 alembic==1.13.1
 yookassa
+feedparser>=6.0.10
+apscheduler==3.11.2

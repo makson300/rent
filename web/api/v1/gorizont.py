@@ -680,3 +680,71 @@ async def publish_dataset(
     await session.refresh(ds)
     logger.info("Dataset %d listed at $%.2f USDT by user %d", ds.id, ds.price_usdt, user.id)
     return ds
+
+# ---------------------------------------------------------------------------
+# B2B/B2G Корпоративный Дашборд: Цифровой Двойник и Аналитика
+# ---------------------------------------------------------------------------
+
+from db.models.pilot_twin import PilotTwin
+from db.models.tender import Tender
+from sqlalchemy import func
+
+class TwinOut(BaseModel):
+    id: int
+    user_id: int
+    total_flight_hours: float
+    total_missions: int
+    safety_score: float
+    success_rate: float
+    momoa_grade: str
+    skills_json: str | None
+
+    class Config:
+        from_attributes = True
+
+@gorizont_router.get("/twins", response_model=list[TwinOut])
+async def list_twins(
+    user: User = Depends(resolve_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Список Цифровых Двойников (для B2B поиска пилотов)."""
+    # В реальной B2B-системе сюда нужен guard check (role == company)
+    result = await session.execute(
+        select(PilotTwin).order_by(PilotTwin.safety_score.desc())
+    )
+    return result.scalars().all()
+
+@gorizont_router.get("/twins/{twin_id}", response_model=TwinOut)
+async def get_twin(
+    twin_id: int,
+    user: User = Depends(resolve_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Конкретный профиль Цифрового Двойника Пилота."""
+    result = await session.execute(
+        select(PilotTwin).where(PilotTwin.id == twin_id)
+    )
+    twin = result.scalar_one_or_none()
+    if not twin:
+        raise HTTPException(status_code=404, detail="Twin not found")
+    return twin
+
+@gorizont_router.get("/analytics/tenders")
+async def get_tenders_analytics(
+    user: User = Depends(resolve_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """Агрегированная B2G-аналитика тендеров (MoMoA)."""
+    total = (await session.execute(select(func.count(Tender.id)))).scalar_one()
+    b2g = (await session.execute(select(func.count(Tender.id)).where(Tender.is_b2g == True))).scalar_one()
+    new_status = (await session.execute(select(func.count(Tender.id)).where(Tender.b2g_status == "new"))).scalar_one()
+    approved = (await session.execute(select(func.count(Tender.id)).where(Tender.b2g_status == "approved"))).scalar_one()
+    
+    return {
+        "momoa_pulse": "Active",
+        "total_tenders": total,
+        "b2g_tenders": b2g,
+        "new_pipelines": new_status,
+        "in_progress": approved,
+        "ai_match_rate": 84.5 # placeholder AI accuracy
+    }

@@ -16,6 +16,7 @@ from db.models.tender_bid import TenderBid
 from db.models.dispute import EscrowDispute
 from db.models.message import Message
 from db.models.insurance import InsurancePolicy
+from db.models.pilot_twin import PilotTwin
 
 # Горизонт v2 расширения (Фазы 36/42/44/47/48/51)
 from db.models.gorizont_ext import (
@@ -33,6 +34,7 @@ __all__ = [
     "Tender", "TenderBid", "FleetDrone", "FleetBattery",
     "Wallet", "Transaction", "PilotCertificate", "Job",
     "FlightPlan", "EscrowDispute", "Message", "InsurancePolicy",
+    "PilotTwin",
     # Горизонт v2
     "LeasingApplication", "PatentApplication", "DroneTracker",
     "DroneportBooking", "CourseEnrollment", "DatasetListing",

@@ -28,16 +28,16 @@ def upgrade() -> None:
     # ------------------------------------------------------------------
     conn.execute(sa.text("""
         CREATE TABLE IF NOT EXISTS course_enrollments (
-            id               INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            id               SERIAL PRIMARY KEY,
             user_id          INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
             course_id        INTEGER NOT NULL,
             course_title     VARCHAR(512) NOT NULL,
-            progress_pct     INTEGER NOT NULL DEFAULT 0,
-            is_completed     BOOLEAN NOT NULL DEFAULT 0,
-            completed_at     DATETIME,
-            certificate_issued BOOLEAN NOT NULL DEFAULT 0,
+            progress_pct     INTEGER NOT NULL DEFAULT FALSE,
+            is_completed     BOOLEAN NOT NULL DEFAULT FALSE,
+            completed_at     TIMESTAMP,
+            certificate_issued BOOLEAN NOT NULL DEFAULT FALSE,
             cert_number      VARCHAR(50),
-            enrolled_at      DATETIME NOT NULL
+            enrolled_at      TIMESTAMP NOT NULL
         )
     """))
     conn.execute(sa.text(
@@ -52,21 +52,21 @@ def upgrade() -> None:
     # ------------------------------------------------------------------
     conn.execute(sa.text("""
         CREATE TABLE IF NOT EXISTS dataset_listings (
-            id             INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            id             SERIAL PRIMARY KEY,
             user_id        INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
             flight_id      VARCHAR(50)  NOT NULL,
             area_name      VARCHAR(512) NOT NULL,
             tags           VARCHAR(255) NOT NULL,
             size_gb        FLOAT NOT NULL,
             resolution_cm  FLOAT,
-            has_lidar      BOOLEAN NOT NULL DEFAULT 0,
-            has_thermal    BOOLEAN NOT NULL DEFAULT 0,
-            price_usdt     FLOAT NOT NULL DEFAULT 0,
+            has_lidar      BOOLEAN NOT NULL DEFAULT FALSE,
+            has_thermal    BOOLEAN NOT NULL DEFAULT FALSE,
+            price_usdt     FLOAT NOT NULL DEFAULT FALSE,
             status         VARCHAR(20) NOT NULL DEFAULT 'unlisted',
-            pii_sanitized  BOOLEAN NOT NULL DEFAULT 0,
-            buyer_count    INTEGER NOT NULL DEFAULT 0,
-            created_at     DATETIME NOT NULL,
-            listed_at      DATETIME
+            pii_sanitized  BOOLEAN NOT NULL DEFAULT FALSE,
+            buyer_count    INTEGER NOT NULL DEFAULT FALSE,
+            created_at     TIMESTAMP NOT NULL,
+            listed_at      TIMESTAMP
         )
     """))
     conn.execute(sa.text(
@@ -78,21 +78,21 @@ def upgrade() -> None:
     # ------------------------------------------------------------------
     conn.execute(sa.text("""
         CREATE TABLE IF NOT EXISTS drone_trackers (
-            id               INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            id               SERIAL PRIMARY KEY,
             user_id          INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
             tracker_id       VARCHAR(30) NOT NULL UNIQUE,
             nickname         VARCHAR(100) NOT NULL,
             drone_model      VARCHAR(255) NOT NULL,
             serial_number    VARCHAR(100) NOT NULL,
-            orvd_visible     BOOLEAN NOT NULL DEFAULT 1,
-            is_active        BOOLEAN NOT NULL DEFAULT 1,
+            orvd_visible     BOOLEAN NOT NULL DEFAULT TRUE,
+            is_active        BOOLEAN NOT NULL DEFAULT TRUE,
             last_lat         FLOAT,
             last_lng         FLOAT,
             last_altitude_m  FLOAT,
             last_speed_kmh   FLOAT,
             last_battery_pct INTEGER,
-            last_seen_at     DATETIME,
-            registered_at    DATETIME NOT NULL
+            last_seen_at     TIMESTAMP,
+            registered_at    TIMESTAMP NOT NULL
         )
     """))
     conn.execute(sa.text(
@@ -107,17 +107,17 @@ def upgrade() -> None:
     # ------------------------------------------------------------------
     conn.execute(sa.text("""
         CREATE TABLE IF NOT EXISTS droneport_bookings (
-            id         INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            id         SERIAL PRIMARY KEY,
             user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
             port_id    VARCHAR(30)  NOT NULL,
             port_name  VARCHAR(255) NOT NULL,
             tracker_id VARCHAR(30),
-            slot_from  DATETIME NOT NULL,
-            slot_to    DATETIME NOT NULL,
+            slot_from  TIMESTAMP NOT NULL,
+            slot_to    TIMESTAMP NOT NULL,
             status     VARCHAR(20) NOT NULL DEFAULT 'confirmed',
             qr_token   VARCHAR(64),
             total_rub  FLOAT,
-            created_at DATETIME NOT NULL
+            created_at TIMESTAMP NOT NULL
         )
     """))
     conn.execute(sa.text(
@@ -132,7 +132,7 @@ def upgrade() -> None:
     # ------------------------------------------------------------------
     conn.execute(sa.text("""
         CREATE TABLE IF NOT EXISTS leasing_applications (
-            id                    INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            id                    SERIAL PRIMARY KEY,
             user_id               INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
             company_name          VARCHAR(255) NOT NULL,
             inn                   VARCHAR(20)  NOT NULL,
@@ -142,8 +142,8 @@ def upgrade() -> None:
             tender_guarantee_id   VARCHAR(100),
             requested_amount_rub  FLOAT NOT NULL,
             status                VARCHAR(30) NOT NULL DEFAULT 'pending',
-            created_at            DATETIME NOT NULL,
-            updated_at            DATETIME NOT NULL
+            created_at            TIMESTAMP NOT NULL,
+            updated_at            TIMESTAMP NOT NULL
         )
     """))
     conn.execute(sa.text(
@@ -155,7 +155,7 @@ def upgrade() -> None:
     # ------------------------------------------------------------------
     conn.execute(sa.text("""
         CREATE TABLE IF NOT EXISTS patent_applications (
-            id           INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            id           SERIAL PRIMARY KEY,
             user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
             fips_id      VARCHAR(50) UNIQUE,
             title        VARCHAR(512) NOT NULL,
@@ -165,11 +165,11 @@ def upgrade() -> None:
             author_name  VARCHAR(255),
             organization VARCHAR(255),
             inn          VARCHAR(20),
-            is_secret    BOOLEAN NOT NULL DEFAULT 0,
+            is_secret    BOOLEAN NOT NULL DEFAULT FALSE,
             status       VARCHAR(30) NOT NULL DEFAULT 'draft',
             progress_pct INTEGER NOT NULL DEFAULT 15,
-            filed_at     DATETIME,
-            created_at   DATETIME NOT NULL
+            filed_at     TIMESTAMP,
+            created_at   TIMESTAMP NOT NULL
         )
     """))
     conn.execute(sa.text(
@@ -178,22 +178,19 @@ def upgrade() -> None:
 
     # ------------------------------------------------------------------
     # Новые колонки в существующих таблицах (idempotent)
-    # SQLite: ALTER TABLE ADD COLUMN падает если колонка уже есть — ловим
+    # SQLite: ALTER TABLE ADD COLUMN IF NOT EXISTS падает если колонка уже есть — ловим
     # ------------------------------------------------------------------
     idempotent_alters = [
-        "ALTER TABLE users ADD COLUMN is_emergency_volunteer BOOLEAN DEFAULT 0",
-        "ALTER TABLE users ADD COLUMN emergency_region VARCHAR(100)",
-        "ALTER TABLE users ADD COLUMN inn VARCHAR(20)",
-        "ALTER TABLE users ADD COLUMN company_name VARCHAR(255)",
-        "ALTER TABLE tenders ADD COLUMN lat FLOAT",
-        "ALTER TABLE tenders ADD COLUMN lng FLOAT",
-        "ALTER TABLE tender_bids ADD COLUMN ai_reason TEXT",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_emergency_volunteer BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS emergency_region VARCHAR(100)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS inn VARCHAR(20)",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS company_name VARCHAR(255)",
+        "ALTER TABLE tenders ADD COLUMN IF NOT EXISTS lat FLOAT",
+        "ALTER TABLE tenders ADD COLUMN IF NOT EXISTS lng FLOAT",
+        "ALTER TABLE tender_bids ADD COLUMN IF NOT EXISTS ai_reason TEXT",
     ]
     for stmt in idempotent_alters:
-        try:
-            conn.execute(sa.text(stmt))
-        except Exception:
-            pass  # колонка уже существует
+        conn.execute(sa.text(stmt))
 
 
 def downgrade() -> None:

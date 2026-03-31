@@ -7,6 +7,7 @@ from sqlalchemy import select, or_
 from sqlalchemy.orm import selectinload
 from db.models.listing import Listing
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.filters import Command
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -14,7 +15,6 @@ logger = logging.getLogger(__name__)
 class SearchStates(StatesGroup):
     waiting_for_query = State()
 
-from aiogram.filters import Command
 @router.message(F.text == "🔍 Поиск")
 @router.message(Command("search"))
 async def start_search(message: types.Message, state: FSMContext):
@@ -36,10 +36,7 @@ async def process_search(message: types.Message, state: FSMContext):
             .join(User, Listing.user_id == User.id)
             .options(selectinload(Listing.photos), selectinload(Listing.user))
             .where(
-                or_(
-                    Listing.is_approved == True,
-                    Listing.status == "active"
-                ),
+                Listing.status == "active",
                 User.is_banned == False
             )
             .where(

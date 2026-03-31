@@ -15,6 +15,7 @@ from bot.handlers import (
     job_router, job_hiring_router, orvd_router, tariffs_router, tenders_router,
     momoa_assessment_router, store_ai_router
 )
+from bot.handlers.company_profile import router as company_profile_router
 from db.base import init_db
 
 logging.basicConfig(
@@ -58,6 +59,7 @@ async def main():
 
     # Подключение роутеров
     logger.info("Registering routers...")
+    dp.include_router(company_profile_router)
     dp.include_router(admin_router) # Админский роутер первым!
     dp.include_router(start_router)
     dp.include_router(profile_router)
@@ -83,6 +85,8 @@ async def main():
     from bot.handlers.ai_vision import router as ai_vision_router
     from bot.handlers.admin_radar import router as admin_radar_router
     from bot.handlers.fleet_manager import router as fleet_router
+    from bot.handlers.escrow import router as escrow_router
+    dp.include_router(escrow_router)
     dp.include_router(admin_radar_router)
     dp.include_router(job_hiring_router)
     dp.include_router(airspace_router)
@@ -105,43 +109,53 @@ async def main():
     from bot.services.emergency_monitor import monitor_service
     monitor_task = asyncio.create_task(monitor_service.start())
 
-    # Запуск парсера hh.ru (раз в 12 часов)
+    # === Инициализация Планировщика Задач (APScheduler) ===
+    from apscheduler.schedulers.asyncio import AsyncIOScheduler
+    from datetime import datetime, timedelta
+    scheduler = AsyncIOScheduler()
+    
+    # 1. Запуск парсера hh.ru (раз в 12 часов)
     from db.base import async_session
     from bot.services.hh_parser import process_and_save_vacancies
-    
-    async def hh_parser_loop(bot_instance):
-        await asyncio.sleep(10) # Задержка запуска
-        while True:
-            try:
-                async with async_session() as session:
-                    new_jobs = await process_and_save_vacancies(bot_instance, session)
-                    if new_jobs > 0:
-                        logger.info(f"HH Parser: added {new_jobs} new vacancies!")
-            except Exception as e:
-                logger.error(f"HH Parser loop error: {e}")
-            await asyncio.sleep(43200) # 12 часов
+    async def run_hh_parser(bot_instance):
+        try:
+            async with async_session() as session:
+                new_jobs = await process_and_save_vacancies(bot_instance, session)
+                if new_jobs > 0:
+                    logger.info(f"HH Parser: added {new_jobs} new vacancies!")
+        except Exception as e:
+            logger.error(f"HH Parser loop error: {e}")
             
-    hh_task = asyncio.create_task(hh_parser_loop(bot))
-
-    # Запуск ИИ Ежедневного Отчета (Daily Digest)
+    # 2. ИИ Ежедневного Отчета (Daily Digest)
     from bot.services.smart_moderator import smart_moderator
-    async def daily_digest_loop(bot_instance):
-        await asyncio.sleep(60) # Первоначальная задержка 1 минута
-        while True:
-            try:
-                from bot.handlers.admin import ADMIN_IDS
-                async with async_session() as session:
-                    report = await smart_moderator.generate_daily_report(session)
-                    for admin_id in ADMIN_IDS:
-                        try:
-                            await bot_instance.send_message(admin_id, report, parse_mode="HTML")
-                        except Exception as e:
-                            logger.error(f"Cannot send digest to admin {admin_id}: {e}")
-            except Exception as e:
-                logger.error(f"Daily Digest loop error: {e}")
-            await asyncio.sleep(86400) # 24 часа
+    async def run_daily_digest(bot_instance):
+        try:
+            from bot.config import ADMIN_IDS
+            async with async_session() as session:
+                report = await smart_moderator.generate_daily_report(session)
+                for admin_id in filter(None, ADMIN_IDS.split(',')):
+                    try:
+                        await bot_instance.send_message(admin_id, report, parse_mode="HTML")
+                    except Exception as e:
+                        logger.error(f"Cannot send digest to admin {admin_id}: {e}")
+        except Exception as e:
+            logger.error(f"Daily Digest loop error: {e}")
             
-    digest_task = asyncio.create_task(daily_digest_loop(bot))
+    # 3. Радар Госзакупок B2G (ЕИС 44-ФЗ)
+    from bot.services.b2g_parser import parse_b2g_tenders
+    async def run_b2g_radar(bot_instance):
+        try:
+            await parse_b2g_tenders(bot_instance)
+        except Exception as e:
+            logger.error(f"B2G Parser loop error: {e}")
+
+    # Добавляем джобы в планировщик, выполняя первые запуски с задержкой (10-60 сек)
+    scheduler.add_job(run_hh_parser, 'interval', hours=12, args=[bot], next_run_time=datetime.now() + timedelta(seconds=10))
+    scheduler.add_job(run_daily_digest, 'interval', days=1, args=[bot], next_run_time=datetime.now() + timedelta(seconds=60))
+    scheduler.add_job(run_b2g_radar, 'interval', hours=6, args=[bot], next_run_time=datetime.now() + timedelta(seconds=20))
+    
+    scheduler.start()
+    logger.info("APScheduler background tasks started.")
 
     logger.info("Bot configuration ready.")
     
@@ -179,8 +193,7 @@ async def main():
             logger.info("Stopping background tasks...")
             monitor_service.stop()
             monitor_task.cancel()
-            hh_task.cancel()
-            digest_task.cancel()
+            scheduler.shutdown()
 
 
 

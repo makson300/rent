@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from db.models.feedback import Feedback
     from db.models.review import Review
     from db.models.reward import Reward
+    from db.models.pilot_twin import PilotTwin
 
 
 class User(Base):
@@ -45,3 +46,4 @@ class User(Base):
     feedbacks: Mapped[list["Feedback"]] = relationship("Feedback", back_populates="user")
     reviews_received: Mapped[list["Review"]] = relationship("Review", foreign_keys="Review.target_user_id", back_populates="target_user")
     rewards: Mapped[list["Reward"]] = relationship("Reward", back_populates="user")
+    twin: Mapped[list["PilotTwin"]] = relationship("PilotTwin", back_populates="user", uselist=False)

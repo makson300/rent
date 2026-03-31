@@ -99,9 +99,10 @@ async def run_b2g_matching(bot: Bot, tender_id: int):
 
         # 3. Отправляем пуши
         for user in matched_users:
-            kb = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="🎯 Подать отклик", url="https://45.12.5.177.nip.io/dashboard/tenders")]
-            ])
+            buttons = [[InlineKeyboardButton(text="🎯 Подать отклик", url="https://45.12.5.177.nip.io/dashboard/tenders")]]
+            if tender.b2g_url:
+                buttons.append([InlineKeyboardButton(text="📄 Изучить ТЗ на ЕИС", url=tender.b2g_url)])
+            kb = InlineKeyboardMarkup(inline_keyboard=buttons)
             text = (
                 f"🚨 <b>SMART B2G TENDER MATCH</b> 🚨\n\n"
                 f"Вышел крупный Госконтракт, который <b>подходит</b> под ваше оборудование!\n\n"
@@ -116,3 +117,4 @@ async def run_b2g_matching(bot: Bot, tender_id: int):
                 logger.warning(f"Failed to send alert to {user.telegram_id}: {e}")
                 
     return len(matched_users)
+

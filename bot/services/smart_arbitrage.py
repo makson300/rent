@@ -109,4 +109,35 @@ class SmartArbitrator:
             logger.error(f"Gemini Anti-Dumping Error: {e}")
             return {"is_dumping": False, "reason": f"AI Error: {e}"}
 
+    async def open_auto_dispute(self, session, bot, dispute: 'EscrowDispute', tender, bid):
+        """Открывает спор, анализирует ИИ, и рассылает вердикт админам платформы."""
+        ai_summary = await self.analyze_dispute(
+            tender_title=tender.title,
+            tender_desc=tender.description,
+            plaintiff_claim=dispute.reason,
+            evidence=dispute.evidence_text or "Дополнительных доказательств не предоставлено"
+        )
+        
+        dispute.ai_summary = ai_summary
+        dispute.status = "ai_reviewed"
+        session.add(dispute)
+        await session.commit()
+        
+        # Отправка администраторам (Уведомление ИИ Судьи)
+        from bot.config import ADMIN_IDS
+        admin_text = (
+            f"⚖️ <b>DISPUTE ALERT (ИИ Арбитр)</b>\n\n"
+            f"<b>Тендер:</b> <i>{tender.title}</i> (ID: {tender.id})\n"
+            f"<b>Заказчик ID:</b> <code>{tender.employer_id}</code>\n"
+            f"<b>Подрядчик ID:</b> <code>{bid.contractor_id}</code>\n\n"
+            f"<b>Жалоба:</b> {dispute.reason}\n\n"
+            f"🤖 <b>Вывод ИИ:</b>\n{ai_summary}\n\n"
+            f"🛠 <b>Действие:</b> Администратору необходимо вручную закрыть сделку в Дашборде."
+        )
+        for admin_id in ADMIN_IDS:
+            try:
+                await bot.send_message(admin_id, admin_text, parse_mode="HTML")
+            except Exception as e:
+                logger.error(f"Не удалось отправить алерт арбитража админу {admin_id}: {e}")
+
 smart_arbitrator = SmartArbitrator()

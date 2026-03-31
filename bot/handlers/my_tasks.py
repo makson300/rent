@@ -114,7 +114,7 @@ async def process_job_completion(callback: types.CallbackQuery):
     if action == "finish_job":
         try:
             await callback.message.edit_text(callback.message.html_text + "\n\n✅ <b>Статус:</b> Завершена пилотом.", parse_mode="HTML")
-        except:
+        except Exception:
             pass
         await callback.answer("Работа сдана. Ожидайте подтверждения заказчика.", show_alert=True)
         try:
@@ -128,6 +128,6 @@ async def process_job_completion(callback: types.CallbackQuery):
     else:
         try:
             await callback.message.edit_text(callback.message.html_text + "\n\n✅ <b>Статус:</b> Принята заказчиком.", parse_mode="HTML")
-        except:
+        except Exception:
             pass
         await callback.answer("Работа принята. Средства (Безопасная сделка) переведены пилоту.", show_alert=True)

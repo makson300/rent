@@ -13,7 +13,7 @@ from typing import Any
 
 import httpx
 
-from core.config import settings
+from bot.config import ADMIN_IDS
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +21,8 @@ logger = logging.getLogger(__name__)
 # Константы
 # ---------------------------------------------------------------------------
 _MAX_API_URL = "https://api.max-messenger.ru/v1/webhook/send"
-_MAX_TOKEN   = getattr(settings, "MAX_API_TOKEN", "")
-_ADMIN_ID    = getattr(settings, "ADMIN_ID", None)
+_MAX_TOKEN   = ""
+_ADMIN_ID    = ADMIN_IDS[0] if ADMIN_IDS else None
 
 _RETRY_ATTEMPTS = 3
 _RETRY_BASE_DELAY = 0.5  # секунды

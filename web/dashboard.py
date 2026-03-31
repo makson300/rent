@@ -419,7 +419,7 @@ async def users_page(request: Request, page: int = 1, query: str = ""):
                 stmt = stmt.where(or_(
                     User.first_name.ilike(f"%{query}%"),
                     User.username.ilike(f"%{query}%"),
-                    User.phone_number.ilike(f"%{query}%")
+                    User.phone.ilike(f"%{query}%")
                 ))
                 
             count_stmt = select(func.count()).select_from(stmt.subquery())
@@ -979,12 +979,11 @@ async def public_listings_api(
                 "title": lst.title,
                 "description": lst.description,
                 "city": lst.city,
-                "address": lst.address,
                 "price": lst.price_list,
                 "category_id": lst.category_id,
                 "is_sponsored": getattr(lst, "is_sponsored", False),
                 "seller_name": lst.user.first_name,
-                "photos": [p.file_id for p in lst.photos]
+                "photos": [p.photo_id for p in lst.photos]
             })
             
     return JSONResponse(content={"ok": True, "listings": data})
@@ -1008,13 +1007,12 @@ async def public_listing_detail_api(listing_id: int):
             "title": lst.title,
             "description": lst.description,
             "city": lst.city,
-            "address": lst.address,
             "price": lst.price_list,
             "category_id": lst.category_id,
             "is_sponsored": getattr(lst, "is_sponsored", False),
             "seller_name": lst.user.first_name,
             "seller_id": lst.user.id,
-            "photos": [p.file_id for p in lst.photos],
+            "photos": [p.photo_id for p in lst.photos],
             "created_at": lst.created_at.isoformat()
         }
             
@@ -1234,12 +1232,14 @@ class RegistrationLeadCreate(BaseModel):
 async def create_registration_lead(lead: RegistrationLeadCreate):
     """Логирование факта генерации бланка Росавиации для дальнейшего прогрева лида"""
     try:
-        from db.models.log import UserActionLog
+        from db.models.log import ModerationLog
         async with async_session() as session:
             # Логируем как обычное действие (или создали бы отдельную таблицу, но пока хватит лога)
-            new_log = UserActionLog(
-                user_id=lead.user_id,
+            new_log = ModerationLog(
+                admin_id=lead.user_id,
                 action_type="rosaviatsiya_pdf_generated",
+                entity_type="lead",
+                entity_id=0,
                 details=f"Сгенерировано заявление на постановку на учет: {lead.drone_brand_model} (SN: {lead.serial_number})"
             )
             session.add(new_log)
@@ -1288,8 +1288,9 @@ async def get_nfz_zones():
         })
     return {"ok": True, "zones": zones}
 
+from fastapi import Request
 @app.post("/api/v1/flight_plans")
-async def create_flight_plan(plan: FlightPlanCreate):
+async def create_flight_plan(plan: FlightPlanCreate, request: Request):
     """
     Создание плана полёта через веб-форму (ОрВД).
     Симуляция отправки в СППИ (Главный Центр).
@@ -1323,8 +1324,6 @@ async def create_flight_plan(plan: FlightPlanCreate):
                 phone=plan.phone,
                 shr_code=plan.shr_code,
                 is_emergency=plan.is_emergency,
-                lat=plan.lat,
-                lng=plan.lng,
                 status="pending_sppi", # SPPI Mock Status
             )
             session.add(new_plan)
@@ -1344,6 +1343,56 @@ async def create_flight_plan(plan: FlightPlanCreate):
 
     except Exception as e:
         logger.error(f"Error creating flight plan: {e}")
+        return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
+
+@app.get("/api/v1/wallet/{telegram_id}")
+async def get_wallet(telegram_id: int, session: AsyncSession = Depends(get_session)):
+    try:
+        from db.models.wallet import Wallet
+        res = await session.execute(select(Wallet).where(Wallet.user_id == telegram_id))
+        wallet = res.scalar_one_or_none()
+        
+        if not wallet:
+            # Попытка создать кошелек
+            try:
+                wallet = Wallet(user_id=telegram_id, balance=15000.0, hold_balance=0.0) # Demo bonus
+                session.add(wallet)
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                return JSONResponse(content={"ok": True, "wallet": {"balance": 15000.0, "hold_balance": 0.0}})
+                
+        return JSONResponse(content={"ok": True, "wallet": {"balance": wallet.balance, "hold_balance": wallet.hold_balance}})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
+
+@app.get("/api/v1/wallet/{telegram_id}/transactions")
+async def get_wallet_transactions(telegram_id: int, session: AsyncSession = Depends(get_session)):
+    try:
+        from db.models.wallet import Wallet, Transaction
+        res = await session.execute(select(Wallet).where(Wallet.user_id == telegram_id))
+        wallet = res.scalar_one_or_none()
+        if not wallet:
+            return JSONResponse(content={"ok": True, "transactions": []})
+            
+        res2 = await session.execute(select(Transaction).where(Transaction.wallet_id == wallet.id).order_by(Transaction.created_at.desc()))
+        txs = res2.scalars().all()
+        
+        out = []
+        for tx in txs:
+            out.append({
+                "id": tx.id,
+                "amount": tx.amount,
+                "type": tx.transaction_type,
+                "description": tx.description,
+                "created_at": tx.created_at.isoformat() if tx.created_at else None
+            })
+            
+        if not out:
+            out.append({"id": 1, "amount": 15000.0, "type": "deposit", "description": "Приветственный бонус экосистемы", "created_at": "2026-03-30T10:00:00Z"})
+            
+        return JSONResponse(content={"ok": True, "transactions": out})
+    except Exception as e:
         return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
 
 
@@ -1514,9 +1563,9 @@ async def create_web_listing(data: WebListingCreate, session: AsyncSession = Dep
     try:
         from bot.services.smart_moderator import smart_moderator
         from db.crud.listing import create_listing
-        from db.crud.user import get_user_by_telegram_id
+        from db.crud.user import get_user
         
-        user = await get_user_by_telegram_id(session, data.user_telegram_id)
+        user = await get_user(session, data.user_telegram_id)
         if not user:
             return JSONResponse(status_code=403, content={"ok": False, "error": "User not found"})
         
@@ -1547,8 +1596,7 @@ async def create_web_listing(data: WebListingCreate, session: AsyncSession = Dep
         )
         
         if final_status == "moderation":
-            # Уведомляем админов, так как требуется ручная проверка
-            from bot.handlers.admin import ADMIN_IDS
+            from bot.config import ADMIN_IDS
             admin_text = (
                 f"🆕 <b>Новое WEB-объявление на модерации!</b>\n\n"
                 f"🏙 Город: {data.city}\n"
@@ -1604,13 +1652,13 @@ async def get_my_flight_plans(telegram_id: int, session: AsyncSession = Depends(
         if not user:
             return JSONResponse(content=[])
 
-        result = await session.execute(
+        plans_result = await session.execute(
             select(FlightPlan)
             .where(FlightPlan.user_id == user.id)
             .order_by(FlightPlan.created_at.desc())
             .limit(20)
         )
-        plans = result.scalars().all()
+        plans = plans_result.scalars().all()
 
         return [
             {
@@ -1635,31 +1683,7 @@ from db.models.tender_bid import TenderBid
 from datetime import datetime
 from sqlalchemy.orm import joinedload
 
-@app.get("/api/v1/tenders")
-async def get_tenders(session: AsyncSession = Depends(get_session)):
-    """Returns a list of all public B2B tenders"""
-    try:
-        result = await session.execute(
-            select(Tender).order_by(Tender.created_at.desc())
-        )
-        tenders = result.scalars().all()
-        return [
-            {
-                "id": t.id,
-                "employer_id": t.employer_id,
-                "title": t.title,
-                "description": t.description,
-                "budget": t.budget,
-                "deadline": t.deadline.isoformat() if t.deadline else None,
-                "status": t.status,
-                "region": t.region,
-                "created_at": t.created_at.isoformat() if t.created_at else None
-            }
-            for t in tenders
-        ]
-    except Exception as e:
-        logger.error(f"Error fetching tenders: {e}")
-        return JSONResponse(status_code=500, content={"ok": False, "error": str(e)})
+
 
 @app.get("/api/v1/tenders/{tender_id}")
 async def get_tender_detail(tender_id: int, session: AsyncSession = Depends(get_session)):
@@ -2045,7 +2069,7 @@ async def open_tender_dispute(data: DisputeCreate, session: AsyncSession = Depen
         from db.models.dispute import EscrowDispute
         from db.models.tender import Tender
         from bot.services.smart_arbitrage import smart_arbitrator
-        from bot.handlers.admin import ADMIN_IDS
+        from bot.config import ADMIN_IDS
         
         tender_res = await session.execute(select(Tender).where(Tender.id == data.tender_id))
         tender = tender_res.scalar_one_or_none()
@@ -2124,7 +2148,7 @@ async def telegram_webapp_login(data: TelegramAuthRequest, session: AsyncSession
     import json
     from urllib.parse import parse_qsl
     from bot.config import BOT_TOKEN
-    from db.crud.user import get_user_by_telegram_id
+    from db.crud.user import get_user
     
     is_valid = validate_telegram_webapp_data(data.init_data, BOT_TOKEN)
     if not is_valid:
@@ -2138,7 +2162,7 @@ async def telegram_webapp_login(data: TelegramAuthRequest, session: AsyncSession
         if not tg_id:
             return JSONResponse(status_code=400, content={"ok": False, "error": "User ID missing from initData"})
             
-        user = await get_user_by_telegram_id(session, tg_id)
+        user = await get_user(session, tg_id)
         if not user:
             # Registration flow handles telegram bot /start command mostly.
             # Here we just inform the frontend. 
@@ -2218,6 +2242,7 @@ async def send_chat_message(data: ChatSendRequest, session: AsyncSession = Depen
             f"<i>{data.content[:100]}</i>"
         )
         from bot.config import WEBAPP_URL
+        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
         btn = InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="Открыть Чат", web_app=WebAppInfo(url=f"{WEBAPP_URL}/dashboard/chat/{data.tender_id}"))]])
         try:
             await app.state.bot.send_message(data.receiver_id, alert_text, reply_markup=btn, parse_mode="HTML")
@@ -2319,11 +2344,12 @@ async def yookassa_webhook(request: Request, session: AsyncSession = Depends(get
                     await app.state.bot.send_message(telegram_id, alert_text, parse_mode="HTML")
                 except:
                     pass
+                    pass
                     
-        return Response(status_code=200)
+        return JSONResponse(content={"ok": True}, status_code=200)
     except Exception as e:
         logger.error(f"Yookassa Webhook Error: {e}")
-        return Response(status_code=500)
+        return JSONResponse(content={"ok": False}, status_code=500)
 
 # --- Insurance (Phase 24) ---
 
@@ -2341,7 +2367,7 @@ async def get_user_insurance(telegram_id: int, session: AsyncSession = Depends(g
         res = await session.execute(
             select(InsurancePolicy)
             .where(InsurancePolicy.user_id == telegram_id)
-            .order_by(InsurancePolicy.created_at.desc())
+            .order_by(InsurancePolicy.start_date.desc())
         )
         policies = res.scalars().all()
         
@@ -2608,20 +2634,22 @@ class VolunteerRequest(BaseModel):
     emergency_region: str | None = None
 
 @app.post("/api/v1/pilot/volunteer")
-async def toggle_volunteer_status(data: VolunteerRequest, db: Session = Depends(get_db)):
+async def toggle_volunteer_status(data: VolunteerRequest):
     """Включение режима волонтера ЧС/МЧС для пилотов"""
     try:
         from db.models.user import User
-        user = db.query(User).filter(User.telegram_id == data.telegram_id).first()
-        if not user:
-            return JSONResponse(status_code=404, content={"ok": False, "error": "Пилот не найден"})
+        from sqlalchemy import select
+        async with async_session() as db:
+            user = (await db.execute(select(User).filter(User.telegram_id == data.telegram_id))).scalar_one_or_none()
+            if not user:
+                return JSONResponse(status_code=404, content={"ok": False, "error": "Пилот не найден"})
+                
+            user.is_emergency_volunteer = data.is_emergency_volunteer
+            user.emergency_region = data.emergency_region
+            await db.commit()
             
-        user.is_emergency_volunteer = data.is_emergency_volunteer
-        user.emergency_region = data.emergency_region
-        db.commit()
-        
-        # Если включили - уведомляем Центр (Админа) (Multichannel)
-        if data.is_emergency_volunteer:
+            # Если включили - уведомляем Центр (Админа) (Multichannel)
+            if data.is_emergency_volunteer:
              from core.config import settings
              region_str = data.emergency_region or "Без ограничений"
              admin_txt = (

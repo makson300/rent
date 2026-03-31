@@ -16,4 +16,4 @@ class TenderBid(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Опционально: связь с тендером
-    # tender = relationship("Tender", back_populates="bids")
+    tender = relationship("Tender", back_populates="bids")

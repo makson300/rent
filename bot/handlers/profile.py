@@ -67,11 +67,15 @@ async def show_profile(message: types.Message):
     kb_list.append([InlineKeyboardButton(text="🔙 В главное меню", callback_data="back_to_main")])
     
     if user.user_type == "company":
-        kb_list.insert(0, [InlineKeyboardButton(text="💎 Пополнить пакет", callback_data="buy_slots_menu")])
-    
+        inn_text = getattr(user, 'inn', 'Не указан')
+        kb_list.insert(0, [InlineKeyboardButton(text=f"🏢 Моя Компания (ИНН {inn_text})", callback_data="setup_company")])
+        kb_list.insert(1, [InlineKeyboardButton(text="💎 Пополнить пакет", callback_data="buy_slots_menu")])
+    else:
+        kb_list.insert(0, [InlineKeyboardButton(text="🏢 Сделать Компанией (B2B/B2G)", callback_data="setup_company")])
+        
     kb = InlineKeyboardMarkup(inline_keyboard=kb_list)
 
-    slots_text = f"Доступно лимитов: <b>{user.ad_slots}</b>\n" if user.user_type == "company" else ""
+    slots_text = f"Доступно лимитов: <b>{getattr(user, 'ad_slots', 0)}</b>\n" if user.user_type == "company" else ""
     
     # Блок наград (NFT 메дали)
     rewards_text = ""

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
@@ -29,7 +29,8 @@ import {
   Globe2,
   Coins,
   Smartphone,
-  Rocket
+  Rocket,
+  Users
 } from "lucide-react";
 import dynamic from "next/dynamic";
 
@@ -43,6 +44,7 @@ type NavItem = {
   theme: "khokhloma" | "tricolor";
   pulse?: boolean;
   emergency?: boolean;
+  disabled?: boolean;
 };
 
 type NavGroup = { title: string; items: NavItem[] };
@@ -51,6 +53,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "Коммерция (B2B)",
     items: [
+      { name: "Цифровые Двойники",      href: "/dashboard/twins",       icon: Users,    theme: "khokhloma" },
       { name: "Радар Защиты & B2G",    href: "/dashboard/radar",       icon: Target,    theme: "khokhloma" },
       { name: "Биржа Работ & Заказы",  href: "/jobs",                  icon: Briefcase, theme: "khokhloma" },
       { name: "Мои Тендеры",           href: "/dashboard/tenders",    icon: Briefcase, theme: "tricolor" },
@@ -79,9 +82,8 @@ const NAV_GROUPS: NavGroup[] = [
   {
     title: "Инженерная Лаборатория",
     items: [
-      { name: "Констр. ТЗ БАС",     href: "/dashboard/constructor", icon: Wrench,       theme: "tricolor" },
-      { name: "Вирт. Полигон",     href: "/dashboard/polygon",     icon: Microscope,   theme: "tricolor" },
-      { name: "Патент. Бюро",     href: "/dashboard/patent",      icon: ScrollText,   theme: "khokhloma" },
+      { name: "Вирт. Полигон [СКОРО]",  href: "#",                  icon: Microscope,   theme: "tricolor", disabled: true },
+      { name: "Патент. Бюро",           href: "/dashboard/patent",  icon: ScrollText,   theme: "khokhloma" },
     ]
   },
   {
@@ -122,9 +124,31 @@ const NAV_GROUPS: NavGroup[] = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const [user, setUser] = useState<any>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      const u = localStorage.getItem("skyrent_user");
+      if (u) setUser(JSON.parse(u));
+    } catch {}
+
+    const handleToggle = () => setMobileOpen(prev => !prev);
+    window.addEventListener("toggleMobileMenu", handleToggle);
+    return () => window.removeEventListener("toggleMobileMenu", handleToggle);
+  }, []);
 
   return (
-    <aside className="w-[280px] bg-[#0A0A0B]/95 border-r border-white/5 h-screen sticky top-0 flex flex-col hidden lg:flex shrink-0 z-50">
+    <>
+      {/* Mobile Backdrop */}
+      {mobileOpen && (
+        <div 
+          className="fixed inset-0 bg-black/80 z-[60] lg:hidden backdrop-blur-sm transition-all"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+      
+      <aside className={`w-[280px] bg-[#0A0A0B]/95 border-r border-white/5 h-screen fixed lg:sticky top-0 left-0 flex flex-col shrink-0 z-[70] transition-transform duration-300 shadow-2xl ${mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
       
       {/* Логотип */}
       <div className="h-24 flex items-center px-6 border-b border-white/5 relative overflow-hidden group shrink-0">
@@ -179,12 +203,19 @@ export default function Sidebar() {
                     }
                   }
                   
-                  return (
-                    <Link
-                      key={item.name}
-                      href={item.href}
-                      className={`relative overflow-hidden flex items-center px-4 py-2.5 text-[13px] font-bold tracking-wide rounded-xl transition-all duration-300 group ${activeStyles}`}
-                    >
+                    if (item.disabled) return (
+                      <div key={item.name} className={`flex items-center px-4 py-2.5 text-[13px] font-bold tracking-wide rounded-xl opacity-50 cursor-not-allowed text-gray-500`}>
+                        <Icon className="relative z-10 mr-3 h-4 w-4" />
+                        <span>{item.name}</span>
+                      </div>
+                    );
+
+                    return (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        className={`relative overflow-hidden flex items-center px-4 py-2.5 text-[13px] font-bold tracking-wide rounded-xl transition-all duration-300 group ${activeStyles}`}
+                      >
                       <Icon className={`relative z-10 mr-3 h-4 w-4 ${iconActiveStyles}`} />
                       <span className="relative z-10">{item.name}</span>
                       
@@ -213,11 +244,29 @@ export default function Sidebar() {
           </Link>
         </div>
         
-        {/* Telegram Login Widget (Desktop) */}
+        {/* Profile / Telegram Login Widget */}
         <div className="flex justify-center border-t border-white/10 pt-4">
-          <TelegramLoginWidget botName="SkyRentAIBot" />
+          {user ? (
+            <div className="flex flex-col items-center text-center w-full">
+               <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white font-bold mb-2 shadow-lg truncate">
+                 {user.first_name ? user.first_name[0] : "Б"}
+               </div>
+               <div className="text-white text-sm font-bold truncate max-w-[200px]">
+                 {user.first_name} {user.last_name || ""}
+               </div>
+               <div className="text-[10px] text-gray-400 mt-1 uppercase font-bold tracking-wider">
+                 {user.auth_name || "Авторизован"}
+               </div>
+               <button onClick={() => { localStorage.removeItem("skyrent_user"); window.location.reload(); }} className="mt-3 text-xs text-red-400 hover:scale-105 transition-transform">
+                 Выйти
+               </button>
+            </div>
+          ) : (
+            <TelegramLoginWidget botName="SkyRentAIBot" />
+          )}
         </div>
       </div>
     </aside>
+    </>
   );
 }

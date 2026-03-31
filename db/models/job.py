@@ -8,6 +8,7 @@ class Job(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     employer_id = Column(BigInteger, ForeignKey("users.telegram_id"), nullable=True) # Допускается NULL для вакансий с hh.ru
+    pilot_id = Column(BigInteger, ForeignKey("users.telegram_id"), nullable=True) # Пилот-исполнитель
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=False)
     category = Column(String(50), nullable=False)

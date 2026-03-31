@@ -31,19 +31,16 @@ const STATS = [
 
 export default function Home() {
   const ref = useRef(null);
-  const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
-  const yBg         = useTransform(scrollYProgress, [0, 1], [0, 200]);
-  const opacityText = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
 
   return (
     <div ref={ref} className="relative overflow-hidden bg-[#050505] min-h-screen">
 
       {/* Parallax Background */}
-      <motion.div style={{ y: yBg }} className="absolute inset-0 pointer-events-none">
+      <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 -left-4 w-72 h-72 bg-khokhloma-red rounded-full mix-blend-screen filter blur-[150px] opacity-10 animate-blob" />
         <div className="absolute top-0 -right-4 w-72 h-72 bg-khokhloma-gold rounded-full mix-blend-screen filter blur-[150px] opacity-10 animate-blob animation-delay-2000" />
         <div className="absolute inset-0 bg-pattern-khokhloma opacity-5 z-0" />
-      </motion.div>
+      </div>
 
       {/* Hero */}
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-8">
@@ -51,7 +48,6 @@ export default function Home() {
           initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: "easeOut" }}
-          style={{ opacity: opacityText }}
           className="text-center"
         >
           <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-khokhloma-gold/10 border border-khokhloma-gold/20 text-khokhloma-gold text-xs font-bold uppercase tracking-widest mb-6">
@@ -82,7 +78,7 @@ export default function Home() {
               className="w-full sm:w-auto text-center px-8 py-4 border border-white/10 text-lg font-medium rounded-xl text-white bg-white/5 hover:bg-white/10 backdrop-blur-md transition-all hover:-translate-y-1">
               Для пилотов →
             </Link>
-            <Link href="/for-business"
+            <Link href="/franchise"
               className="w-full sm:w-auto text-center px-8 py-4 border border-white/10 text-lg font-medium rounded-xl text-white bg-white/5 hover:bg-white/10 backdrop-blur-md transition-all hover:-translate-y-1">
               Для бизнеса →
             </Link>

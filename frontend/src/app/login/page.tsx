@@ -11,12 +11,28 @@ export default function LoginPage() {
         setLoading(provider);
         // Эмуляция задержки редиректа на сервер OAuth
         setTimeout(() => {
-            toast.success(`Перенаправление на ${provider}...`);
+            toast.success(`Успешный вход через ${provider}!`);
             setLoading(null);
             
             // Mock: Auto-login success for demo
-            localStorage.setItem("skyrent_user", JSON.stringify({ id: 1, telegram_id: 12345678, user_type: "private" }));
-            window.location.href = "/dashboard";
+            const authProvider = provider.includes("Госуслуги") ? "gosuslugi" : provider.includes("VK") ? "vk_id" : "max_id";
+            
+            localStorage.setItem("skyrent_user", JSON.stringify({ 
+                id: 0, 
+                telegram_id: 0, 
+                user_type: "b2b",
+                auth_method: authProvider,
+                auth_name: provider,
+                first_name: "Иван",
+                last_name: "Иванов"
+            }));
+            
+            // Redirect based on provider (B2G/B2B vs Private)
+            if (authProvider === "gosuslugi") {
+                window.location.href = "/dashboard/radar";
+            } else {
+                window.location.href = "/wallet";
+            }
         }, 1500);
     };
 

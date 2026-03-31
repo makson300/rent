@@ -141,10 +141,10 @@ def parse_partner_post(text: str) -> dict:
 @router.channel_post(F.chat.username == "drone_IT_Shop")
 async def import_partner_post(message: types.Message):
     """Автоматический импорт постов от партнера (@drone_IT_Shop) без модерации"""
-    from bot.handlers.admin import is_admin
+    from bot.config import ADMIN_IDS
     
     is_from_channel = message.chat.type == "channel"
-    if not is_from_channel and not is_admin(message.from_user.id, message.from_user.username):
+    if not is_from_channel and message.from_user.id not in ADMIN_IDS:
         return
 
     text = message.text or message.caption or ""

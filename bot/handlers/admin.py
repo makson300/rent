@@ -14,10 +14,8 @@ router = Router()
 logger = logging.getLogger(__name__)
 
 async def get_user_role(session, user_id: int, username: str | None = None) -> str:
-    from bot.config import ADMIN_IDS as CONFIG_ADMIN_IDS
-    if user_id in ADMIN_IDS or user_id in CONFIG_ADMIN_IDS:
-        return "admin"
-    if username and username.lower().lstrip("@") in [u.lower() for u in ADMIN_USERNAMES]:
+    from bot.config import ADMIN_IDS
+    if user_id in ADMIN_IDS:
         return "admin"
     from db.crud.user import get_user
     u = await get_user(session, user_id)

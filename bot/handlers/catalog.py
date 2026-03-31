@@ -102,6 +102,9 @@ async def show_category_listings(callback: types.CallbackQuery):
         seller_badges += " 🏅"
     if review_count >= 3 and avg_rating >= 4.8:
         seller_badges += " ⭐️ Топ-Владелец"
+        
+    if user.user_type == "company":
+        seller_badges += f"\n🏢 <b>{getattr(user, 'company_name', 'Проверенная Компания')}</b> (ИНН: {getattr(user, 'inn', '—')})"
 
     availability = "✅ Свободно" if not listing.booked_dates else f"📅 Занято: {listing.booked_dates}"
     text = (
@@ -185,9 +188,9 @@ async def handle_webapp_data(message: types.Message):
         listing_id = data.get("id")
         
         if action == "view" and listing_id:
-            from db.crud.listing import get_listing
+            from db.crud.listing import get_listing_by_id
             async with async_session() as session:
-                listing = await get_listing(session, int(listing_id))
+                listing = await get_listing_by_id(session, int(listing_id))
                 
             if not listing:
                 await message.answer("⚠️ Объявление не найдено или удалено.")
@@ -268,8 +271,8 @@ async def handle_webapp_data(message: types.Message):
                     return
                 
                 # Retrieve pilot info
-                from db.crud.user import get_user_profile
-                pilot = await get_user_profile(session, message.from_user.id)
+                from db.crud.user import get_user
+                pilot = await get_user(session, message.from_user.id)
                 
                 # Save response
                 resp = JobResponse(job_id=job.id, pilot_id=message.from_user.id)
@@ -280,9 +283,8 @@ async def handle_webapp_data(message: types.Message):
             pilot_username = f"@{message.from_user.username}" if message.from_user.username else f"<a href='tg://user?id={message.from_user.id}'>Ссылка</a>"
             pilot_name = message.from_user.first_name
             pilot_info = (
-                f"Внешний пилот: <b>{'Да' if pilot.has_license else 'Нет'}</b>\n"
-                f"Наличие медкнижки (ВЛЭК): <b>{'Да' if pilot.has_medical else 'Нет'}</b>\n"
-                f"Часы налета: <b>{pilot.flight_hours} ч.</b>"
+                f"Верифицированные часы налета: <b>{pilot.verified_flight_hours} ч.</b>\n"
+                f"Роль в системе: <b>{'Опытный Оператор' if pilot.verified_flight_hours > 50 else 'Новичок'}</b>"
             ) if pilot else "<i>Профиль пилота пока не заполнен.</i>"
             
             employer_msg = (
